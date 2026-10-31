@@ -1,0 +1,1 @@
+paho-mqtt-min.js: Eclipse Paho JavaScript Client 1.1.0, dual-licensed EPL 1.0 / EDL 1.0 (https://github.com/eclipse/paho.mqtt.javascript)

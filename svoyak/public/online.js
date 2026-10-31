@@ -1,29 +1,26 @@
-// Онлайн-режим: игра живёт в браузере ведущего, остальные подключаются к нему
-// через интернет по коду комнаты (PeerJS: бесплатный сервер связи + прямое WebRTC-соединение).
+// Онлайн-режим: игра живёт в браузере ведущего, остальные подключаются к нему через интернет
+// по коду комнаты. Сообщения идут через публичные MQTT-серверы (сразу через несколько, чтобы
+// сработал хоть один), поэтому прямое соединение между телефонами не нужно.
 const SvoyakOnline = (() => {
-  const PREFIX = 'svoyak-v1-';
-  const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const query = new URLSearchParams(location.search);
+  const NS = 'svoyak-game-v2';
+  const BROKERS = query.get('mqtt')
+    ? [query.get('mqtt')] // только для проверки со своим сервером: ?mqtt=ws://127.0.0.1:8888/mqtt
+    : ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+  const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-  function peerOptions() {
-    const o = { debug: 1 };
-    const custom = query.get('peer'); // только для проверки со своим сервером: ?peer=localhost:9000
-    if (custom) {
-      const [host, port] = custom.split(':');
-      Object.assign(o, { host, port: Number(port) || 9000, path: '/', secure: false });
-    }
-    return o;
-  }
-
-  const newCode = () => Array.from({ length: 4 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
+  const rnd = (n) => Array.from({ length: n }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
+  const newCode = () => rnd(4);
   const normCode = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  const upTopic = (code) => `${NS}/${code}/up`;
+  const downTopic = (code, cid) => `${NS}/${code}/d/${cid}`;
 
   function link(page, code) {
     const u = new URL(page, location.href);
     u.search = '';
     u.hash = '';
     if (code) u.searchParams.set('room', code);
-    if (query.get('peer')) u.searchParams.set('peer', query.get('peer'));
+    if (query.get('mqtt')) u.searchParams.set('mqtt', query.get('mqtt'));
     if (query.has('online')) u.searchParams.set('online', '');
     return u.href;
   }
@@ -34,6 +31,91 @@ const SvoyakOnline = (() => {
     return r.json();
   }
 
+  // Одно подключение к MQTT-серверу, которое само переподключается.
+  function Link(url, { onMessage, onUp, onDown, will }) {
+    let client = null;
+    let alive = false;
+    let stopped = false;
+    let timer = null;
+    const subs = new Set();
+
+    function retry(ms) {
+      clearTimeout(timer);
+      if (!stopped) timer = setTimeout(open, ms);
+    }
+
+    function open() {
+      clearTimeout(timer);
+      try { if (client) client.disconnect(); } catch { /* уже закрыт */ }
+      try {
+        client = new Paho.Client(url, 'sv' + rnd(12));
+      } catch { retry(5000); return; }
+      const c = client;
+      c.onConnectionLost = () => {
+        if (c !== client) return;
+        alive = false;
+        onDown && onDown();
+        retry(2500);
+      };
+      c.onMessageArrived = (m) => {
+        let d;
+        try { d = JSON.parse(m.payloadString); } catch { return; }
+        if (d && typeof d === 'object') onMessage(m.destinationName, d);
+      };
+      const opts = {
+        useSSL: url.startsWith('wss'),
+        timeout: 8,
+        keepAliveInterval: 20,
+        cleanSession: true,
+        onSuccess: () => {
+          if (c !== client) return;
+          alive = true;
+          subs.forEach((t) => c.subscribe(t, { qos: 0 }));
+          onUp && onUp();
+        },
+        onFailure: () => {
+          if (c !== client) return;
+          alive = false;
+          onDown && onDown();
+          retry(3000);
+        },
+      };
+      if (will) {
+        const w = new Paho.Message(JSON.stringify(will.data));
+        w.destinationName = will.topic;
+        w.qos = 0;
+        opts.willMessage = w;
+      }
+      try { c.connect(opts); } catch { retry(3000); }
+    }
+
+    open();
+    return {
+      get alive() { return alive; },
+      url,
+      sub(t) {
+        subs.add(t);
+        if (alive) { try { client.subscribe(t, { qos: 0 }); } catch { /* после переподключения */ } }
+      },
+      pub(t, data) {
+        if (!alive) return false;
+        try {
+          const m = new Paho.Message(JSON.stringify(data));
+          m.destinationName = t;
+          m.qos = 0;
+          client.send(m);
+          return true;
+        } catch { return false; }
+      },
+      kick() { if (!alive && !stopped) open(); },
+      close() {
+        stopped = true;
+        clearTimeout(timer);
+        try { client.disconnect(); } catch { /* уже закрыт */ }
+      },
+    };
+  }
+
   // ---------- ведущий: держит игру ----------
   function startHost({ onState, onStatus, store }) {
     let saved = null;
@@ -41,32 +123,43 @@ const SvoyakOnline = (() => {
     let code = normCode(store('svoyak.online.code')) || newCode();
     store('svoyak.online.code', code);
 
-    const conns = new Map(); // соединение -> { role, id }
+    const conns = new Map(); // "сервер|cid" -> { bi, cid, role, id, seen }
     let packs = [{ file: 'svoi.json', title: 'Для своих' }, { file: 'classic.json', title: 'Свояк' }];
     let engine = null;
-    let peer = null;
-    let ready = false;
-    let idTries = 0;
+    let links = [];
 
     const hooks = {
       isOnline: (pid) => [...conns.values()].some((c) => c.role === 'player' && c.id === pid),
-      screens: () => [...conns.values()].filter((c) => c.role === 'screen').length,
+      screens: () => new Set([...conns.values()].filter((c) => c.role === 'screen').map((c) => c.cid)).size,
       urls: () => [],
       packs: () => packs,
       loadPackFile: () => { throw new Error('Пакет ещё не загружен'); },
     };
 
+    const aliveCount = () => links.filter((l) => l.alive).length;
+
     function hostView() {
       const v = engine.view('host');
-      v.online = { code, play: link('play.html', code), screen: link('screen.html', code), host: link('host.html', code), cheat: link('cheat.html', code), connected: ready };
+      v.online = {
+        code,
+        play: link('play.html', code),
+        screen: link('screen.html', code),
+        host: link('host.html', code),
+        cheat: link('cheat.html', code),
+        connected: aliveCount() > 0,
+        servers: `${aliveCount()} из ${links.length}`,
+      };
       return v;
+    }
+
+    function sendTo(c, msg) {
+      const l = links[c.bi];
+      if (l) l.pub(downTopic(code, c.cid), msg);
     }
 
     function broadcast() {
       if (!engine) return;
-      for (const [conn, c] of conns) {
-        try { conn.send({ t: 'state', v: c.role === 'host' ? hostView() : engine.view(c.role, c.id) }); } catch { /* отвалился */ }
-      }
+      for (const c of conns.values()) sendTo(c, { t: 'state', v: c.role === 'host' ? hostView() : engine.view(c.role, c.id) });
       onState(hostView());
       try { store('svoyak.online.game', JSON.stringify(engine.state)); } catch { /* память переполнена */ }
     }
@@ -81,74 +174,64 @@ const SvoyakOnline = (() => {
       return r;
     }
 
-    function onMsg(conn, msg) {
-      if (!msg || typeof msg !== 'object' || !engine) return;
-      if (msg.t === 'hello') {
-        const role = msg.role;
-        if (!['player', 'screen', 'host'].includes(role)) return;
-        if (role === 'host' && msg.key !== engine.pin) { conn.send({ t: 'denied', error: 'Неверный PIN' }); return; }
-        conns.set(conn, { role, id: role === 'player' ? String(msg.id || '') : '' });
+    function onMsg(bi, d) {
+      if (!engine) return;
+      const cid = String(d.cid || '');
+      if (!/^[A-Za-z0-9_-]{4,40}$/.test(cid)) return;
+      const k = bi + '|' + cid;
+      const reply = (msg) => links[bi].pub(downTopic(code, cid), msg);
+
+      if (d.t === 'hello') {
+        if (!['player', 'screen', 'host'].includes(d.role)) return;
+        if (d.role === 'host' && d.key !== engine.pin) { reply({ t: 'denied', error: 'Неверный PIN' }); return; }
+        const id = d.role === 'player' ? String(d.id || '') : '';
+        if (d.role === 'player' && !/^[A-Za-z0-9_-]{6,40}$/.test(id)) return;
+        conns.set(k, { bi, cid, role: d.role, id, seen: Date.now() });
         broadcast();
         return;
       }
-      if (msg.t === 'cheat') {
-        conn.send(msg.key === engine.pin ? { t: 'cheat', pack: engine.state.pack } : { t: 'denied', error: 'Неверный PIN' });
+      if (d.t === 'cheat') {
+        reply(d.key === engine.pin ? { t: 'cheat', pack: engine.state.pack } : { t: 'denied', error: 'Неверный PIN' });
         return;
       }
-      if (msg.t === 'act') {
-        const c = conns.get(conn);
-        if (!c || c.role === 'screen') return;
-        const body = { ...(msg.body || {}) };
+      const c = conns.get(k);
+      if (d.t === 'bye') { if (conns.delete(k)) broadcast(); return; }
+      if (!c) { if (d.t === 'ping' || d.t === 'act') reply({ t: 'rehello' }); return; }
+      c.seen = Date.now();
+      if (d.t === 'act') {
+        if (c.role === 'screen') return;
+        const body = { ...(d.body || {}) };
         if (c.role === 'player') { body.role = 'player'; body.id = c.id; } else { body.role = 'host'; body.key = engine.pin; }
         run(body)
-          .then((res) => conn.send({ t: 'res', rid: msg.rid, ok: true, ...res }))
-          .catch((e) => conn.send({ t: 'res', rid: msg.rid, error: e.message }));
+          .then((res) => reply({ t: 'res', rid: d.rid, ok: true, ...res }))
+          .catch((e) => reply({ t: 'res', rid: d.rid, error: e.message }));
       }
     }
 
-    function openPeer() {
-      peer = new Peer(PREFIX + code, peerOptions());
-      peer.on('open', () => { ready = true; idTries = 0; onStatus(true); broadcast(); });
-      peer.on('connection', (conn) => {
-        conn.on('data', (msg) => onMsg(conn, msg));
-        const drop = () => { if (conns.delete(conn)) broadcast(); };
-        conn.on('close', drop);
-        conn.on('error', drop);
-      });
-      peer.on('disconnected', () => {
-        ready = false;
-        onStatus(false);
-        broadcast();
-        setTimeout(() => { try { if (!peer.destroyed && peer.disconnected) peer.reconnect(); } catch { /* попробуем позже */ } }, 1500);
-      });
-      peer.on('error', (err) => {
-        if (err.type === 'unavailable-id') {
-          // после перезагрузки страницы старое подключение держится ещё несколько секунд
-          ready = false;
-          onStatus(false);
-          peer.destroy();
-          if (++idTries > 10) { code = newCode(); store('svoyak.online.code', code); idTries = 0; }
-          setTimeout(openPeer, 3000);
-          broadcast();
-          return;
-        }
-        if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(err.type)) {
-          ready = false;
-          onStatus(false);
-          broadcast();
-          setTimeout(() => {
-            if (peer.destroyed) openPeer();
-            else if (peer.disconnected) { try { peer.reconnect(); } catch { /* ещё раз позже */ } }
-          }, 3000);
-        }
+    function openLinks() {
+      links.forEach((l) => l.close());
+      conns.clear();
+      links = BROKERS.map((url, bi) => {
+        const l = Link(url, {
+          onMessage: (t, d) => onMsg(bi, d),
+          onUp: () => { onStatus(true); broadcast(); },
+          onDown: () => { if (!aliveCount()) onStatus(false); broadcast(); },
+        });
+        l.sub(upTopic(code));
+        return l;
       });
     }
 
-    // iPhone усыпляет вкладку в фоне: вернувшись, переподключаемся сразу
+    // раз в несколько секунд: убираем пропавших и повторяем состояние (сообщения могут теряться)
+    setInterval(() => {
+      if (!engine) return;
+      const now = Date.now();
+      for (const [k, c] of conns) if (now - c.seen > 16000) conns.delete(k);
+      broadcast();
+    }, 6000);
+
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState !== 'visible' || !peer) return;
-      if (peer.destroyed) openPeer();
-      else if (peer.disconnected) { try { peer.reconnect(); } catch { /* событие disconnected повторит */ } }
+      if (document.visibilityState === 'visible') links.forEach((l) => l.kick());
     });
 
     (async () => {
@@ -156,8 +239,8 @@ const SvoyakOnline = (() => {
       let pack = null;
       if (!saved) pack = await fetchJson('../packs/' + encodeURIComponent(packs[0].file));
       engine = SvoyakEngine.createEngine({ game: saved, pack, pin: saved ? saved.pin : String(1000 + Math.floor(Math.random() * 9000)), hooks });
+      openLinks();
       broadcast();
-      openPeer();
     })().catch((e) => onStatus(false, e.message));
 
     return {
@@ -168,100 +251,100 @@ const SvoyakOnline = (() => {
       newRoom() {
         code = newCode();
         store('svoyak.online.code', code);
-        if (peer) peer.destroy();
-        conns.clear();
-        ready = false;
-        openPeer();
+        openLinks();
         broadcast();
       },
-      close() { if (peer) peer.destroy(); },
+      close() { links.forEach((l) => l.close()); },
     };
   }
 
-  // ---------- игрок, большой экран, второй пульт: подключаются к ведущему ----------
+  // ---------- игрок, большой экран, второй пульт, шпаргалка ----------
   function connectRemote({ code, hello, onState, onStatus, onMessage }) {
-    let peer = null;
-    let conn = null;
+    const h0 = hello();
+    const cid = h0.role === 'player' && h0.id ? String(h0.id).slice(0, 40) : 'c' + rnd(12);
+    let chosen = -1; // номер сервера, через который отвечает ведущий
+    let lastFromHost = 0;
     let rid = 0;
-    let retryTimer = null;
     const pending = new Map();
+    const started = Date.now();
 
-    function schedule(ms) {
-      clearTimeout(retryTimer);
-      retryTimer = setTimeout(connectConn, ms);
-    }
+    const sayHello = (l) => l.pub(upTopic(code), { cid, ...hello() });
 
-    function startPeer() {
-      peer = new Peer(peerOptions());
-      peer.on('open', () => connectConn());
-      peer.on('disconnected', () => {
-        setTimeout(() => { try { if (!peer.destroyed && peer.disconnected) peer.reconnect(); } catch { /* позже */ } }, 1500);
+    const links = BROKERS.map((url, bi) => {
+      const l = Link(url, {
+        will: { topic: upTopic(code), data: { cid, t: 'bye' } },
+        onUp: () => { if (chosen < 0 || chosen === bi) sayHello(l); },
+        onDown: () => {
+          if (chosen === bi) { chosen = -1; onStatus(false, 'Связь прервалась, переподключаемся…'); }
+        },
+        onMessage: (t, msg) => {
+          if (chosen >= 0 && chosen !== bi) return;
+          if (msg.t === 'state') {
+            if (chosen < 0) chosen = bi;
+            lastFromHost = Date.now();
+            onStatus(true);
+            onState(msg.v);
+          } else if (msg.t === 'rehello') {
+            sayHello(l);
+          } else if (msg.t === 'res') {
+            lastFromHost = Date.now();
+            const p = pending.get(msg.rid);
+            if (!p) return;
+            pending.delete(msg.rid);
+            clearTimeout(p.timer);
+            if (msg.error) p.reject(new Error(msg.error)); else p.resolve(msg);
+          } else if (onMessage) onMessage(msg);
+        },
       });
-      peer.on('error', (err) => {
-        if (err.type === 'peer-unavailable') {
-          onStatus(false, `Комната ${code} не найдена. Проверьте код и что у ведущего открыта игра.`);
-          schedule(3000);
-          return;
-        }
-        onStatus(false, 'Нет связи, переподключаемся…');
-        if (peer.destroyed) setTimeout(startPeer, 3000);
-        else schedule(3000);
-      });
-    }
-
-    function connectConn() {
-      if (!peer || peer.destroyed) { startPeer(); return; }
-      if (peer.disconnected) { try { peer.reconnect(); } catch { /* ждём */ } schedule(2000); return; }
-      if (!peer.open) { schedule(1000); return; }
-      if (conn) { try { conn.close(); } catch { /* уже закрыто */ } }
-      const c = peer.connect(PREFIX + code, { reliable: true });
-      conn = c;
-      let opened = false;
-      const guard = setTimeout(() => { if (!opened && conn === c) schedule(0); }, 12000);
-      c.on('open', () => {
-        opened = true;
-        clearTimeout(guard);
-        c.send(hello());
-        onStatus(true);
-      });
-      c.on('data', (msg) => {
-        if (conn !== c || !msg) return;
-        if (msg.t === 'state') onState(msg.v);
-        else if (msg.t === 'res') {
-          const p = pending.get(msg.rid);
-          if (!p) return;
-          pending.delete(msg.rid);
-          clearTimeout(p.timer);
-          if (msg.error) p.reject(new Error(msg.error)); else p.resolve(msg);
-        } else if (onMessage) onMessage(msg);
-      });
-      const lost = () => {
-        if (conn !== c) return;
-        onStatus(false, 'Связь с ведущим потеряна, переподключаемся…');
-        schedule(2000);
-      };
-      c.on('close', lost);
-      c.on('error', lost);
-    }
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && (!conn || !conn.open)) schedule(0);
+      l.sub(downTopic(code, cid));
+      return l;
     });
 
-    startPeer();
+    // пока ведущий не ответил — повторяем приветствие; потом — пинг, чтобы он видел нас в сети
+    const tick = setInterval(() => {
+      const now = Date.now();
+      if (chosen >= 0 && links[chosen].alive) {
+        links[chosen].pub(upTopic(code), { cid, t: 'ping' });
+        if (now - lastFromHost > 20000) {
+          chosen = -1;
+          onStatus(false, 'Ведущий пропал из сети. Ждём, когда он вернётся…');
+        }
+        return;
+      }
+      const alive = links.filter((l) => l.alive);
+      alive.forEach(sayHello);
+      if (now - started < 6000) return;
+      if (!alive.length) onStatus(false, 'Не удаётся связаться с сервером связи. Попробуйте другой интернет (мобильный или Wi‑Fi) или VPN.');
+      else onStatus(false, `Ищем ведущего комнаты ${code}… Проверьте код и что пульт ведущего открыт.`);
+    }, 3000);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      links.forEach((l) => l.kick());
+      links.filter((l) => l.alive).forEach(sayHello);
+    });
+
+    onStatus(false, 'Подключаемся к серверу связи…');
 
     return {
       post(body) {
         return new Promise((resolve, reject) => {
-          if (!conn || !conn.open) { reject(new Error('Нет связи с ведущим')); return; }
+          const l = links[chosen];
+          if (!l || !l.alive) { reject(new Error('Нет связи с ведущим')); return; }
           const id = ++rid;
-          const timer = setTimeout(() => { pending.delete(id); reject(new Error('Ведущий не ответил')); }, 8000);
+          const timer = setTimeout(() => { pending.delete(id); reject(new Error('Ведущий не ответил, попробуйте ещё раз')); }, 8000);
           pending.set(id, { resolve, reject, timer });
-          conn.send({ t: 'act', rid: id, body });
+          l.pub(upTopic(code), { cid, t: 'act', rid: id, body });
         });
       },
-      send(msg) { if (conn && conn.open) conn.send(msg); },
-      close() { clearTimeout(retryTimer); if (peer) peer.destroy(); },
+      send(msg) {
+        const targets = chosen >= 0 ? [links[chosen]] : links;
+        targets.forEach((l) => l.pub(upTopic(code), { cid, ...msg }));
+      },
+      close() {
+        clearInterval(tick);
+        links.forEach((l) => { l.pub(upTopic(code), { cid, t: 'bye' }); l.close(); });
+      },
     };
   }
 

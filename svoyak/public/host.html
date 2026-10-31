@@ -233,7 +233,7 @@ function onlineInfoHtml() {
   const o = st.online;
   return `<div style="display:grid;gap:10px">
     <div class="q-head"><span>Код комнаты</span><span class="price" style="font-size:32px;letter-spacing:.12em">${e(o.code)}</span></div>
-    <div class="muted" style="font-size:14px">${o.connected ? 'Комната открыта. Ребята сканируют QR или открывают ссылку.' : 'Открываем комнату… нужен интернет.'}</div>
+    <div class="muted" style="font-size:14px">${o.connected ? `Комната открыта (серверов связи: ${e(o.servers)}). Ребята сканируют QR или открывают ссылку.` : 'Открываем комнату… нужен интернет.'}</div>
     <div id="qr" style="background:#fff;border-radius:12px;padding:8px;width:min(220px,100%);margin:0 auto"></div>
     <div class="urls"><code>${e(o.play)}</code></div>
     <button class="btn" id="copyLink" type="button">Скопировать ссылку для игроков</button>

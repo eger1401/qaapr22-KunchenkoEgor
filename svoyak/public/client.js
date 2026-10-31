@@ -57,7 +57,7 @@ const S = (() => {
     const st = (s) => { offset = s.now - Date.now(); onState(s); };
     const status = (on, msg) => onStatus && onStatus(on, msg);
     const local = params.role === 'host' && !room();
-    const ready = loadScript('vendor/peerjs.min.js')
+    const ready = loadScript('vendor/paho-mqtt-min.js')
       .then(() => loadScript('online.js'))
       .then(() => (local ? loadScript('engine.js') : null))
       .then(() => {
