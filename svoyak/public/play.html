@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Свояк — игрок</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&family=Russo+One&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .me-bar { display: flex; align-items: center; gap: 10px; }
+  .me-bar .nm { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .me-bar .sc { font-family: var(--display); font-size: 28px; font-variant-numeric: tabular-nums; }
+
+  .buzz {
+    width: min(78vw, 300px); aspect-ratio: 1; max-width: 100%; border-radius: 50%; border: 0; margin: 4px auto;
+    display: grid; place-items: center; text-align: center; padding: 20px;
+    font-family: var(--display); font-size: 26px; line-height: 1.1; color: #fff;
+    background: #3a2030; box-shadow: 0 10px 0 #22121c, inset 0 -8px 0 rgba(0,0,0,.25);
+    touch-action: manipulation; user-select: none; -webkit-user-select: none; cursor: pointer;
+    transition: transform .05s, box-shadow .05s, background .15s;
+  }
+  .buzz:active { transform: translateY(6px); box-shadow: 0 4px 0 #22121c; }
+  .buzz.open { background: var(--buzz); box-shadow: 0 10px 0 #9b1d2a, 0 0 0 0 rgba(255,77,94,.6); animation: pulse 1s infinite; }
+  .buzz.mine { background: var(--good); color: #04220f; box-shadow: 0 10px 0 #1d7a50; animation: none; }
+  .buzz.out { background: #2a2d45; color: var(--muted); box-shadow: 0 10px 0 #1a1c2e; }
+  .buzz.locked { background: #5a4a16; }
+  @keyframes pulse { 0% { box-shadow: 0 10px 0 #9b1d2a, 0 0 0 0 rgba(255,77,94,.55); } 100% { box-shadow: 0 10px 0 #9b1d2a, 0 0 0 26px rgba(255,77,94,0); } }
+  .center { text-align: center; }
+  .big-msg { font-family: var(--display); font-size: 24px; text-align: center; text-wrap: balance; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="join" class="card" hidden>
+    <h1 style="color:var(--gold)">Свояк</h1>
+    <form id="joinForm" class="row">
+      <label class="label" for="nameInput" style="flex-basis:100%">Как вас зовут?</label>
+      <input id="nameInput" type="text" maxlength="20" autocomplete="nickname" placeholder="Имя" required>
+      <button class="btn gold wide" type="submit">Войти в игру</button>
+    </form>
+  </section>
+
+  <section id="game" hidden>
+    <div class="wrap">
+      <div class="card me-bar">
+        <span id="conn" class="dot"></span>
+        <span class="nm" id="myName"></span>
+        <button class="btn ghost small" id="renameBtn" type="button">Имя</button>
+        <span class="sc" id="myScore">0</span>
+      </div>
+      <div id="main" class="card"></div>
+      <div class="card">
+        <span class="label">Счёт</span>
+        <div id="scores"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="client.js"></script>
+<script>
+const id = S.playerId();
+let st = null;
+let lastKey = '';
+let lockUntil = 0;
+let joined = false;
+let prevAnswering = null;
+
+const $ = (s) => document.querySelector(s);
+
+function showJoin() {
+  $('#join').hidden = false;
+  $('#game').hidden = true;
+  $('#nameInput').value = S.store('svoyak.name') || '';
+  $('#nameInput').focus();
+}
+
+$('#joinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('#nameInput').value.trim();
+  if (!name) return;
+  try {
+    await S.post({ role: 'player', id, type: 'join', name });
+    S.store('svoyak.name', name);
+    joined = true;
+    $('#join').hidden = true;
+    $('#game').hidden = false;
+    lastKey = '';
+    if (st) render();
+  } catch (err) { S.toast(err.message); }
+});
+$('#renameBtn').addEventListener('click', showJoin);
+
+let autoJoinTried = false;
+S.connect({ role: 'player', id }, (s) => {
+  st = s;
+  const meIn = st.players.some((p) => p.id === id);
+  if (!meIn) {
+    joined = false;
+    // вернулись после перезагрузки страницы — входим под сохранённым именем
+    const saved = S.store('svoyak.name');
+    if (saved && !autoJoinTried) {
+      autoJoinTried = true;
+      S.post({ role: 'player', id, type: 'join', name: saved }).then(() => { joined = true; }).catch(showJoin);
+    } else if ($('#join').hidden) showJoin();
+    return;
+  }
+  joined = true;
+  render();
+}, (on) => $('#conn').classList.toggle('on', on));
+
+function render() {
+  if (!st || !joined) return;
+  if (!$('#join').hidden) return; // игрок меняет имя
+  $('#game').hidden = false;
+  const me = st.players.find((p) => p.id === id);
+  $('#myName').textContent = me ? me.name : '';
+  $('#myScore').textContent = me ? me.score : 0;
+  $('#myScore').classList.toggle('neg', me && me.score < 0);
+  $('#scores').innerHTML = S.scoresHtml(st, { me: id });
+
+  // подсказка вибрацией, когда отвечаем мы
+  if (st.answering === id && prevAnswering !== id) { S.vibrate([80, 40, 80]); S.beep(990, 220); }
+  prevAnswering = st.answering;
+
+  const f = st.final;
+  const myFinal = f && f.players.find((p) => p.id === id);
+  const key = JSON.stringify([st.phase, st.board.index, st.board.themes.map((t) => t.cells.map((c) => c.used)), st.q, st.buzzOpen, st.buzzOpenedAt,
+    st.answering, st.wrong, st.chooser, f && f.text, f && f.answer, myFinal && [myFinal.hasBet, myFinal.hasAnswer, myFinal.bet], f && f.players.map((p) => p.ok),
+    st.phase === 'end' || st.phase === 'lobby' ? st.players : 0]);
+  if (key === lastKey) return;
+  // не стираем текст, который игрок набирает
+  const typing = document.activeElement && document.activeElement.matches('#main input, #main textarea');
+  if (typing && lastKey && JSON.parse(lastKey)[0] === st.phase) return;
+  lastKey = key;
+  $('#main').innerHTML = mainHtml(me, f, myFinal);
+  bindMain();
+}
+
+function mainHtml(me, f, myFinal) {
+  const e = S.esc;
+  switch (st.phase) {
+    case 'lobby':
+      return `<div class="big-msg">Ждём начала игры</div>
+        <p class="muted center">В игре: ${st.players.map((p) => e(p.name)).join(', ')}</p>`;
+    case 'board':
+      return `<div class="q-head"><h2>${e(st.board.name)}</h2><span class="muted">осталось ${st.roundLeft}</span></div>
+        ${st.chooser === id ? '<div class="tag">Ваш выбор: назовите тему и цену</div>' : `<div class="muted">Выбирает: <b>${e(S.nameOf(st, st.chooser))}</b></div>`}
+        ${S.boardHtml(st)}`;
+    case 'question':
+    case 'reveal': {
+      const q = st.q;
+      let head = `<div class="q-head"><span class="label">${e(q.theme)}</span><span class="price">${q.price}</span></div>`;
+      if (q.type === 'cat') head += '<div><span class="tag">Кот в мешке</span></div>';
+      let body = `<div class="q-text">${e(q.text)}</div>`;
+      if (st.phase === 'reveal') {
+        return head + body + `<div class="answer">Ответ: <b>${e(q.answer)}</b></div>`;
+      }
+      if (q.type === 'cat') {
+        body += st.answering
+          ? `<div class="big-msg">${st.answering === id ? 'Отвечаете вы!' : 'Отвечает ' + e(S.nameOf(st, st.answering))}</div>`
+          : '<p class="muted center">Ведущий выбирает, кто будет отвечать</p>';
+        return head + body;
+      }
+      let cls = '', label = 'Жди…';
+      if (st.answering === id) { cls = 'mine'; label = 'Вы отвечаете!'; }
+      else if (st.answering) { cls = 'out'; label = 'Отвечает<br>' + e(S.nameOf(st, st.answering)); }
+      else if (st.wrong.includes(id)) { cls = 'out'; label = 'Вы уже<br>ответили'; }
+      else if (st.buzzOpen) { cls = 'open'; label = 'ЖМИ!'; }
+      const timer = st.answering ? `<div class="timer" data-timer-start="${st.answeringAt}"><i></i></div>` : '';
+      return head + body + timer + `<button class="buzz ${cls}" id="buzz" type="button">${label}</button>
+        <p class="muted center" style="margin:0;font-size:14px">Жать можно, когда кнопка покраснеет. Раньше — блокировка на 1 секунду.</p>`;
+    }
+    case 'final-bets':
+      if (!myFinal) return `<div class="big-msg">Финал: ${e(f.theme)}</div><p class="muted center">В финал проходят игроки с положительным счётом. Смотрим!</p>`;
+      if (myFinal.hasBet) return `<div class="big-msg">Финал: ${e(f.theme)}</div><p class="center">Ваша ставка: <span class="price">${myFinal.bet}</span></p><p class="muted center">Можно изменить, пока ведущий не показал вопрос</p>` + betForm(me);
+      return `<div class="big-msg">Финал: ${e(f.theme)}</div>` + betForm(me);
+    case 'final-question':
+      if (!myFinal) return `<span class="label">Финал · ${e(f.theme)}</span><div class="q-text">${e(f.text)}</div><p class="muted">Вы не участвуете в финале</p>`;
+      return `<span class="label">Финал · ${e(f.theme)} · ставка ${myFinal.bet ?? '—'}</span><div class="q-text">${e(f.text)}</div>
+        ${myFinal.hasAnswer ? `<p>Ваш ответ: <b>${e(myFinal.answer)}</b></p>` : ''}
+        <form id="answerForm" class="row">
+          <label class="label" for="answerInput" style="flex-basis:100%">${myFinal.hasAnswer ? 'Изменить ответ' : 'Ваш ответ'}</label>
+          <input id="answerInput" type="text" maxlength="200" autocomplete="off" required>
+          <button class="btn gold wide" type="submit">Отправить</button>
+        </form>`;
+    case 'final-reveal':
+      return `<span class="label">Финал · ${e(f.theme)}</span><div class="q-text">${e(f.text)}</div>
+        ${f.answer ? `<div class="answer">Ответ: <b>${e(f.answer)}</b></div>` : ''}
+        ${f.players.map((p) => `<div class="score-row"><span class="nm">${e(S.nameOf(st, p.id))}${p.answer !== undefined ? ': ' + e(p.answer || '—') : ''}</span>
+          <span>${p.ok === undefined ? '…' : (p.ok ? '✓ +' : '✗ −') + p.bet}</span></div>`).join('')}`;
+    case 'end': {
+      const top = [...st.players].sort((a, b) => b.score - a.score)[0];
+      return `<div class="big-msg">Игра окончена</div>${top ? `<p class="center">Победитель: <b>${e(top.name)}</b> — <span class="price">${top.score}</span></p>` : ''}`;
+    }
+  }
+  return '';
+}
+
+function betForm(me) {
+  return `<form id="betForm" class="row">
+    <label class="label" for="betInput" style="flex-basis:100%">Ставка от 1 до ${me.score}</label>
+    <input id="betInput" type="number" inputmode="numeric" min="1" max="${me.score}" required>
+    <button class="btn gold wide" type="submit">Поставить</button>
+    <button class="btn ghost wide" type="button" id="allIn">Ва-банк (${me.score})</button>
+  </form>`;
+}
+
+function bindMain() {
+  const b = $('#buzz');
+  if (b) b.addEventListener('pointerdown', buzz);
+  const bf = $('#betForm');
+  if (bf) {
+    bf.addEventListener('submit', (e) => { e.preventDefault(); sendBet($('#betInput').value); });
+    $('#allIn').addEventListener('click', () => sendBet(st.players.find((p) => p.id === id).score));
+  }
+  const af = $('#answerForm');
+  if (af) af.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try { await S.post({ role: 'player', id, type: 'answer', text: $('#answerInput').value }); S.toast('Ответ принят'); $('#answerInput').blur(); lastKey = ''; render(); }
+    catch (err) { S.toast(err.message); }
+  });
+}
+
+async function sendBet(v) {
+  try { await S.post({ role: 'player', id, type: 'bet', amount: Number(v) }); S.toast('Ставка принята'); document.activeElement.blur(); lastKey = ''; render(); }
+  catch (err) { S.toast(err.message); }
+}
+
+async function buzz(e) {
+  e.preventDefault();
+  if (Date.now() < lockUntil) { S.vibrate(30); return; }
+  const btn = e.currentTarget;
+  try {
+    const r = await S.post({ role: 'player', id, type: 'buzz' });
+    if (r.early || r.locked) {
+      lockUntil = Date.now() + (r.lockMs || 1000);
+      S.vibrate(200);
+      btn.classList.add('locked');
+      btn.innerHTML = 'Рано!';
+      setTimeout(() => { lastKey = ''; render(); }, r.lockMs || 1000);
+    }
+  } catch (err) { S.toast(err.message); }
+}
+
+// экран не гаснет во время игры (если браузер позволяет)
+async function keepAwake() { try { await navigator.wakeLock.request('screen'); } catch { /* нет поддержки */ } }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+keepAwake();
+</script>
+</body>
+</html>

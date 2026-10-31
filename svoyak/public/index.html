@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Свояк</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&family=Russo+One&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .hero { text-align: center; padding-block: 8vh 4vh; display: grid; gap: 10px; }
+  .hero h1 { font-size: clamp(44px, 14vw, 88px); color: var(--gold); }
+  .roles { display: grid; gap: 12px; }
+  .roles a { text-decoration: none; display: grid; gap: 4px; text-align: left; padding: 18px; }
+  .roles a b { font-family: var(--display); font-weight: 400; font-size: 20px; }
+  .roles a span { color: var(--muted); font-weight: 400; font-size: 14px; }
+  .roles a.gold span { color: #4a3a00; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>Свояк</h1>
+    <p class="muted">Викторина для компании в одной Wi‑Fi сети</p>
+  </div>
+  <div class="roles">
+    <a class="btn gold" href="/play"><b>Я игрок</b><span>Кнопка, вопросы и свой счёт на телефоне</span></a>
+    <a class="btn" href="/host"><b>Я ведущий</b><span>Нужен PIN из окна сервера</span></a>
+    <a class="btn ghost" href="/screen"><b>Большой экран</b><span>Табло для телевизора или ноутбука</span></a>
+  </div>
+</div>
+</body>
+</html>

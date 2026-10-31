@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Свояк — экран</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&family=Russo+One&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { height: 100%; }
+  body { display: grid; grid-template-rows: auto 1fr auto; gap: 2vh; font-size: clamp(16px, 1.6vw, 28px); }
+  .top h1 { font-size: 1.4em; }
+  #stage { display: grid; align-content: center; gap: 2vh; min-height: 0; }
+  .board { gap: .5vw; }
+  .board .trow { gap: .5vw; }
+  .board .theme { font-size: .9em; padding: 1vh 1vw; border-radius: .6vw; }
+  .board .cell { font-size: 1.6em; padding: 1.4vh 0; border-radius: .6vw; }
+  .big-q { font-size: clamp(28px, 4vw, 72px); line-height: 1.2; font-weight: 600; text-align: center; text-wrap: balance; max-width: 30ch; margin: 0 auto; }
+  .q-meta { text-align: center; display: flex; gap: 1em; justify-content: center; align-items: baseline; font-size: 1.2em; }
+  .who { font-family: var(--display); font-size: 2.4em; text-align: center; color: var(--buzz); }
+  .ans { font-family: var(--display); font-size: 2.4em; text-align: center; color: var(--good); }
+  .open-ind { text-align: center; font-family: var(--display); color: var(--buzz); font-size: 1.4em; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .bar { display: flex; gap: 1vw; flex-wrap: wrap; justify-content: center; }
+  .pl { background: var(--bg-2); border: 1px solid var(--line); border-radius: .8vw; padding: 1vh 1.4vw; min-width: 10ch; text-align: center; }
+  .pl b { display: block; font-weight: 600; }
+  .pl span { font-family: var(--display); font-size: 1.5em; font-variant-numeric: tabular-nums; }
+  .pl.answering { border-color: var(--buzz); background: rgba(255,77,94,.2); }
+  .pl.chooser { border-color: var(--gold); }
+  .join { text-align: center; display: grid; gap: 2vh; }
+  .join code { font-family: var(--display); color: var(--gold); font-size: 2.4em; word-break: break-all; }
+  .timer { max-width: 40vw; width: 100%; margin: 0 auto; height: 1vh; }
+  .fin { display: grid; gap: 1vh; max-width: 60ch; margin: 0 auto; width: 100%; }
+</style>
+</head>
+<body>
+  <div class="top"><h1>Свояк</h1><span id="round" class="muted"></span><span id="conn" class="dot"></span></div>
+  <div id="stage"></div>
+  <div id="bar" class="bar"></div>
+<script src="client.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const e = S.esc;
+let lastKey = '';
+let prevAnswering = null;
+
+S.connect({ role: 'screen' }, (st) => {
+  $('#round').textContent = st.phase === 'lobby' ? '' : st.phase.startsWith('final') ? 'Финал' : st.board.name;
+  $('#bar').innerHTML = st.players.map((p) => `<div class="pl${p.id === st.answering ? ' answering' : ''}${p.id === st.chooser && st.phase === 'board' ? ' chooser' : ''}">
+    <b>${e(p.name)}</b><span class="${p.score < 0 ? 'neg' : ''}">${p.score}</span></div>`).join('');
+  if (st.answering && st.answering !== prevAnswering) S.beep(990, 250);
+  prevAnswering = st.answering;
+  const key = JSON.stringify([st.phase, st.board, st.q, st.buzzOpen, st.answering, st.chooser, st.final, st.phase === 'lobby' || st.phase === 'end' ? st.players : 0]);
+  if (key === lastKey) return;
+  lastKey = key;
+  $('#stage').innerHTML = stage(st);
+}, (on) => $('#conn').classList.toggle('on', on));
+
+function stage(st) {
+  const f = st.final;
+  switch (st.phase) {
+    case 'lobby':
+      return `<div class="join"><div class="muted">Заходите в игру с телефона — откройте в браузере:</div>
+        <code>${e(location.host)}/play</code>
+        <div>${st.players.length ? 'Уже в игре: ' + st.players.map((p) => e(p.name)).join(', ') : 'Пока никого'}</div></div>`;
+    case 'board':
+      return `<div class="q-meta"><span>Выбирает:</span><b>${e(S.nameOf(st, st.chooser))}</b></div>` + S.boardHtml(st);
+    case 'question':
+    case 'reveal': {
+      const q = st.q;
+      let h = `<div class="q-meta"><span class="muted">${e(q.theme)}</span><span class="price">${q.price}</span>${q.type === 'cat' ? '<span class="tag">Кот в мешке</span>' : ''}</div>
+        <div class="big-q">${e(q.text)}</div>`;
+      if (st.phase === 'reveal') return h + `<div class="ans">${e(q.answer)}</div>`;
+      if (st.answering) return h + `<div class="who">${e(S.nameOf(st, st.answering))}</div><div class="timer" data-timer-start="${st.answeringAt}"><i></i></div>`;
+      if (st.buzzOpen) return h + '<div class="open-ind">Жмите!</div>';
+      return h;
+    }
+    case 'final-bets':
+      return `<div class="q-meta"><span class="muted">Финал</span></div><div class="big-q">${e(f.theme)}</div>
+        <div class="q-meta muted">Ставки: ${f.players.filter((p) => p.hasBet).length} из ${f.players.length}</div>`;
+    case 'final-question':
+      return `<div class="q-meta"><span class="muted">Финал · ${e(f.theme)}</span></div><div class="big-q">${e(f.text)}</div>
+        <div class="q-meta muted">Ответили: ${f.players.filter((p) => p.hasAnswer).length} из ${f.players.length}</div>`;
+    case 'final-reveal':
+      return `<div class="q-meta"><span class="muted">Финал · ${e(f.theme)}</span></div><div class="big-q" style="font-size:2em">${e(f.text)}</div>
+        ${f.answer ? `<div class="ans">${e(f.answer)}</div>` : ''}
+        <div class="fin">${f.players.map((p) => `<div class="score-row"><span class="nm">${e(S.nameOf(st, p.id))}${p.answer !== undefined ? ' — «' + e(p.answer || '…') + '»' : ''}</span>
+          <span>${p.ok === undefined ? '…' : `<span style="color:var(${p.ok ? '--good' : '--bad'})">${p.ok ? '+' : '−'}${p.bet}</span>`}</span></div>`).join('')}</div>`;
+    case 'end': {
+      const top = [...st.players].sort((a, b) => b.score - a.score)[0];
+      return `<div class="q-meta muted">Победитель</div><div class="who" style="color:var(--gold);font-size:4em">${top ? e(top.name) : '—'}</div>
+        ${top ? `<div class="q-meta"><span class="price" style="font-size:2em">${top.score}</span></div>` : ''}`;
+    }
+  }
+  return '';
+}
+</script>
+</body>
+</html>

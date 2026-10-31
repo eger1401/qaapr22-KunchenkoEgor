@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Свояк — ведущий</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&family=Russo+One&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .answering-name { font-family: var(--display); font-size: 28px; color: var(--buzz); text-align: center; }
+  .status { text-align: center; font-weight: 600; padding: 10px; border-radius: 10px; background: var(--bg); }
+  .status.open { background: rgba(255,77,94,.18); color: var(--buzz); }
+  .p-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto auto auto; gap: 8px; align-items: center; padding: 8px 10px; background: var(--bg); border-radius: 10px; }
+  .p-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .p-row .sc { font-family: var(--display); min-width: 3.5ch; text-align: right; font-variant-numeric: tabular-nums; }
+  .p-more { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; padding-top: 6px; }
+  .p-more input { flex: 1 1 110px; width: auto; padding: 8px 10px; }
+  .assign { display: flex; gap: 8px; flex-wrap: wrap; }
+  .assign .btn { flex: 1 1 120px; }
+  .urls code { font-size: 15px; color: var(--gold); word-break: break-all; }
+  .log { font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
+  details summary { cursor: pointer; font-weight: 600; }
+  .final-row { display: grid; gap: 8px; padding: 10px; background: var(--bg); border-radius: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="login" class="card" hidden>
+    <h1 style="color:var(--gold)">Пульт ведущего</h1>
+    <form id="loginForm" class="row">
+      <label class="label" for="pinInput" style="flex-basis:100%">PIN из окна сервера</label>
+      <input id="pinInput" type="text" inputmode="numeric" autocomplete="off" required>
+      <button class="btn gold wide" type="submit">Войти</button>
+    </form>
+  </section>
+
+  <section id="app" hidden>
+    <div class="wrap">
+      <div class="top">
+        <h1>Свояк · ведущий</h1>
+        <span id="conn" class="dot" title="связь с сервером"></span>
+      </div>
+      <div id="ctrl" class="card"></div>
+      <div class="card">
+        <div class="q-head"><span class="label">Игроки</span><span class="muted" style="font-size:13px">нажмите ⋯ для правки счёта</span></div>
+        <div id="players"></div>
+      </div>
+      <div class="card">
+        <span class="label">Раунды</span>
+        <div id="rounds" class="row"></div>
+      </div>
+      <div class="card">
+        <span class="label">Подключение</span>
+        <div id="info"></div>
+      </div>
+      <div class="card">
+        <details>
+          <summary>Пакет вопросов и новая игра</summary>
+          <div style="display:grid;gap:12px;margin-top:12px">
+            <p class="muted" style="margin:0">Загрузите свой файл .json в том же формате, что questions.json. Игроки останутся, счёт обнулится.</p>
+            <input id="packFile" type="file" accept=".json,application/json">
+            <div id="confirmNew" class="row">
+              <button class="btn ghost" id="newGameBtn" type="button">Новая игра (сбросить счёт)</button>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div class="card">
+        <span class="label">Журнал</span>
+        <div id="log" class="log"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="client.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const e = S.esc;
+let key = S.store('svoyak.hostKey') || new URLSearchParams(location.search).get('key') || '';
+let st = null;
+let conn = null;
+let open = null; // id игрока, у которого раскрыты настройки
+const keys = {};
+let prevAnswering = null;
+
+async function act(type, extra = {}) {
+  try { return await S.post({ role: 'host', key, type, ...extra }); }
+  catch (err) { S.toast(err.message); }
+}
+
+async function login(k) {
+  try {
+    await S.post({ role: 'host', key: k, type: 'check' });
+    key = k;
+    S.store('svoyak.hostKey', k);
+    $('#login').hidden = true;
+    $('#app').hidden = false;
+    conn && conn.close();
+    conn = S.connect({ role: 'host', key }, (s) => { st = s; render(); }, (on) => $('#conn').classList.toggle('on', on));
+  } catch (err) {
+    S.store('svoyak.hostKey', null);
+    $('#login').hidden = false;
+    $('#app').hidden = true;
+    if (k) S.toast(err.message);
+  }
+}
+$('#loginForm').addEventListener('submit', (ev) => { ev.preventDefault(); login($('#pinInput').value.trim()); });
+login(key);
+
+function section(id, k, html, bind) {
+  if (keys[id] === k) return;
+  const el = $('#' + id);
+  if (el.contains(document.activeElement) && document.activeElement.matches('input')) return;
+  keys[id] = k;
+  el.innerHTML = html;
+  bind && bind(el);
+}
+
+function render() {
+  if (!st) return;
+  if (st.answering && st.answering !== prevAnswering) { S.beep(660, 120); setTimeout(() => S.beep(990, 220), 130); S.vibrate([100, 50, 100]); }
+  prevAnswering = st.answering;
+
+  const fk = st.final ? JSON.stringify(st.final) : '';
+  section('ctrl', JSON.stringify([st.phase, st.board, st.q, st.buzzOpen, st.buzzOpenedAt, st.answering, st.wrong, st.chooser, fk, st.roundLeft,
+    st.phase === 'lobby' || st.phase === 'end' || (st.q && st.q.type === 'cat') ? st.players : st.players.map((p) => p.name)]), ctrlHtml(), bindCtrl);
+  section('players', JSON.stringify([st.players, open, st.answering, st.chooser, st.phase]), playersHtml(), bindPlayers);
+  section('rounds', JSON.stringify([st.rounds, st.board.index, st.phase, st.hasFinal]), roundsHtml(), (el) => {
+    el.querySelectorAll('[data-round]').forEach((b) => b.onclick = () => act('goRound', { round: Number(b.dataset.round) }));
+    el.querySelector('[data-final]') && (el.querySelector('[data-final]').onclick = () => act('finalStart'));
+    el.querySelector('[data-end]').onclick = () => act('end');
+  });
+  section('info', JSON.stringify([st.urls, st.pin]), `
+    <div class="urls" style="display:grid;gap:6px">
+      <div>Игрокам: ${st.urls.map((u) => `<code>${e(u)}/play</code>`).join(' или ')}</div>
+      <div>Большой экран: ${st.urls.map((u) => `<code>${e(u)}/screen</code>`).join(' или ')}</div>
+      <div class="muted">PIN ведущего: <b>${e(st.pin)}</b></div>
+    </div>`);
+  section('log', JSON.stringify(st.log), st.log.map((l) => `<div>${new Date(l.at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })} · ${e(l.text)}</div>`).join('') || 'Пока пусто');
+}
+
+function nm(id) { return e(S.nameOf(st, id)); }
+
+function ctrlHtml() {
+  switch (st.phase) {
+    case 'lobby':
+      return `<h2>Ждём игроков</h2>
+        <p class="muted" style="margin:0">Игроки открывают <b style="color:var(--gold)">${e(st.urls[0])}/play</b> и вводят имя.</p>
+        <p style="margin:0">В игре: ${st.players.length ? st.players.map((p) => e(p.name)).join(', ') : '<span class="muted">пока никого</span>'}</p>
+        <button class="btn gold wide" data-act="start" ${st.players.length ? '' : 'disabled'}>Начать игру</button>`;
+    case 'board': {
+      const done = st.roundLeft === 0;
+      const next = st.board.index + 1 < st.board.total
+        ? `<button class="btn gold wide" data-round="${st.board.index + 1}">${e(st.rounds[st.board.index + 1])}</button>`
+        : st.hasFinal ? '<button class="btn gold wide" data-act="finalStart">Финал</button>' : '<button class="btn gold wide" data-act="end">Итоги</button>';
+      return `<div class="q-head"><h2>${e(st.board.name)}</h2><span class="muted">осталось ${st.roundLeft}</span></div>
+        <div>Выбирает: <b>${nm(st.chooser)}</b></div>
+        ${done ? '<div class="status">Раунд сыгран</div>' + next : '<span class="muted" style="font-size:14px">Нажмите на цену, которую назвал игрок. Рамкой отмечен кот в мешке.</span>'}
+        ${S.boardHtml(st, { clickable: true, cats: st.answersPreview })}`;
+    }
+    case 'question':
+    case 'reveal': {
+      const q = st.q;
+      let h = `<div class="q-head"><span class="label">${e(q.theme)}</span><span class="price">${q.price}</span></div>
+        ${q.type === 'cat' ? '<div><span class="tag">Кот в мешке</span></div>' : ''}
+        <div class="q-text">${e(q.text)}</div>
+        <div class="answer">Ответ: <b>${e(q.answer)}</b></div>`;
+      if (st.phase === 'reveal') return h + '<button class="btn gold wide" data-act="toBoard">К табло</button>';
+      if (st.answering) {
+        return h + `<div class="answering-name">${nm(st.answering)}</div>
+          <div class="row" style="gap:4px"><div class="timer" style="flex:1" data-timer-start="${st.answeringAt}"><i></i></div><span class="muted" data-timer-sec style="width:2ch;text-align:right"></span></div>
+          <div class="row">
+            <button class="btn good" data-act="correct">Верно +${q.price}</button>
+            <button class="btn bad" data-act="wrong">Неверно −${q.price}</button>
+          </div>`;
+      }
+      if (q.type === 'cat') {
+        return h + `<span class="label">Кому отдать вопрос?</span>
+          <div class="assign">${st.players.map((p) => `<button class="btn" data-assign="${e(p.id)}">${e(p.name)}</button>`).join('')}</div>
+          <button class="btn ghost wide" data-act="reveal">Показать ответ</button>`;
+      }
+      const wrong = st.wrong.length ? `<div class="muted" style="font-size:14px">Уже ошиблись: ${st.wrong.map(nm).join(', ')}</div>` : '';
+      return h + wrong + (st.buzzOpen
+        ? `<div class="status open">Кнопка открыта — ждём нажатия</div>
+           <div class="row"><button class="btn ghost" data-act="closeBuzz">Закрыть кнопку</button><button class="btn" data-act="reveal">Никто не ответил</button></div>`
+        : `<div class="status">Прочитайте вопрос вслух и откройте кнопку</div>
+           <button class="btn gold wide" data-act="openBuzz" style="padding:20px">Открыть кнопку</button>
+           <button class="btn ghost wide" data-act="reveal">Показать ответ, никто не ответил</button>`)
+        + `<details><summary class="muted">Назначить отвечающего вручную</summary><div class="assign" style="margin-top:10px">${st.players.map((p) => `<button class="btn small" data-assign="${e(p.id)}">${e(p.name)}</button>`).join('')}</div></details>`;
+    }
+    case 'final-bets': {
+      const f = st.final;
+      return `<span class="label">Финал</span><h2>${e(f.theme)}</h2>
+        <p class="muted" style="margin:0">Объявите тему. Игроки с плюсовым счётом делают ставки на телефонах.</p>
+        ${f.players.map((p) => `<div class="score-row"><span class="nm">${nm(p.id)}</span><span>${p.hasBet ? 'ставка ' + p.bet : '<span class="muted">думает…</span>'}</span></div>`).join('')}
+        <button class="btn gold wide" data-act="finalQuestion" ${f.players.every((p) => p.hasBet) ? '' : ''}>Показать вопрос${f.players.every((p) => p.hasBet) ? '' : ' (не все поставили)'}</button>`;
+    }
+    case 'final-question': {
+      const f = st.final;
+      return `<span class="label">Финал · ${e(f.theme)}</span><div class="q-text">${e(f.text)}</div>
+        <div class="answer">Ответ: <b>${e(f.answer)}</b></div>
+        ${f.players.map((p) => `<div class="score-row"><span class="nm">${nm(p.id)}</span><span>${p.hasAnswer ? 'ответил' : (p.hasBet ? '<span class="muted">пишет…</span>' : '<span class="muted">без ставки</span>')}</span></div>`).join('')}
+        <button class="btn gold wide" data-act="finalReveal">Вскрыть ответы</button>`;
+    }
+    case 'final-reveal': {
+      const f = st.final;
+      const all = f.players.every((p) => p.ok !== undefined);
+      return `<span class="label">Финал · ${e(f.theme)}</span><div class="q-text">${e(f.text)}</div>
+        <div class="answer">Ответ: <b>${e(f.answer)}</b></div>
+        ${f.players.map((p) => `<div class="final-row">
+          <div class="q-head"><b>${nm(p.id)}</b><span class="price">${p.bet ?? 0}</span></div>
+          <div>${p.answer ? '«' + e(p.answer) + '»' : '<span class="muted">нет ответа</span>'}</div>
+          ${p.ok === undefined
+            ? `<div class="row"><button class="btn good small" data-judge="${e(p.id)}" data-ok="1">Верно</button><button class="btn bad small" data-judge="${e(p.id)}" data-ok="0">Неверно</button></div>`
+            : `<div style="color:var(${p.ok ? '--good' : '--bad'})">${p.ok ? '✓ +' : '✗ −'}${p.bet ?? 0}</div>`}
+        </div>`).join('')}
+        ${all ? '<button class="btn gold wide" data-act="end">Итоги игры</button>' : ''}`;
+    }
+    case 'end': {
+      const sorted = [...st.players].sort((a, b) => b.score - a.score);
+      return `<h2>Итоги</h2>${sorted[0] ? `<div class="answering-name" style="color:var(--gold)">${e(sorted[0].name)}</div>` : ''}
+        ${S.scoresHtml(st)}
+        <p class="muted" style="margin:0">Чтобы сыграть ещё раз, откройте «Пакет вопросов и новая игра» ниже.</p>`;
+    }
+  }
+  return '';
+}
+
+function bindCtrl(el) {
+  el.querySelectorAll('[data-act]').forEach((b) => b.onclick = () => act(b.dataset.act));
+  el.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => {
+    const [t, i] = b.dataset.pick.split(':').map(Number);
+    act('pick', { t, i });
+  });
+  el.querySelectorAll('[data-round]').forEach((b) => b.onclick = () => act('goRound', { round: Number(b.dataset.round) }));
+  el.querySelectorAll('[data-assign]').forEach((b) => b.onclick = () => act('assign', { player: b.dataset.assign }));
+  el.querySelectorAll('[data-judge]').forEach((b) => b.onclick = () => act('finalJudge', { player: b.dataset.judge, ok: b.dataset.ok === '1' }));
+}
+
+function playersHtml() {
+  if (!st.players.length) return '<span class="muted">Пока никого</span>';
+  return '<div class="scores">' + st.players.map((p) => `
+    <div class="p-row">
+      <span class="dot${p.online ? ' on' : ''}"></span>
+      <span class="nm">${e(p.name)}${p.id === st.chooser && st.phase === 'board' ? ' <span class="chip">выбирает</span>' : ''}</span>
+      <span class="sc${p.score < 0 ? ' neg' : ''}">${p.score}</span>
+      <button class="btn small ghost" data-more="${e(p.id)}" aria-label="Настройки игрока ${e(p.name)}">⋯</button>
+      <span></span>
+      ${open === p.id ? `<div class="p-more">
+        <button class="btn small" data-delta="-100" data-p="${e(p.id)}">−100</button>
+        <button class="btn small" data-delta="100" data-p="${e(p.id)}">+100</button>
+        <input type="number" inputmode="numeric" id="set-${e(p.id)}" placeholder="точный счёт" aria-label="Точный счёт">
+        <button class="btn small gold" data-set="${e(p.id)}">OK</button>
+        <button class="btn small ghost" data-chooser="${e(p.id)}">Пусть выбирает</button>
+        <button class="btn small bad" data-kick="${e(p.id)}">Удалить</button>
+      </div>` : ''}
+    </div>`).join('') + '</div>';
+}
+
+function bindPlayers(el) {
+  el.querySelectorAll('[data-more]').forEach((b) => b.onclick = () => { open = open === b.dataset.more ? null : b.dataset.more; render(); });
+  el.querySelectorAll('[data-delta]').forEach((b) => b.onclick = () => act('score', { player: b.dataset.p, delta: Number(b.dataset.delta) }));
+  el.querySelectorAll('[data-set]').forEach((b) => b.onclick = () => {
+    const inp = document.getElementById('set-' + b.dataset.set);
+    if (inp.value === '') return;
+    inp.blur();
+    act('score', { player: b.dataset.set, value: Number(inp.value) });
+  });
+  el.querySelectorAll('[data-chooser]').forEach((b) => b.onclick = () => act('chooser', { player: b.dataset.chooser }));
+  el.querySelectorAll('[data-kick]').forEach((b) => b.onclick = () => {
+    if (b.dataset.sure) { act('kick', { player: b.dataset.kick }); open = null; }
+    else { b.dataset.sure = '1'; b.textContent = 'Точно удалить?'; }
+  });
+}
+
+function roundsHtml() {
+  return st.rounds.map((r, i) => `<button class="btn small${i === st.board.index && !st.phase.startsWith('final') && st.phase !== 'end' && st.phase !== 'lobby' ? ' gold' : ''}" data-round="${i}">${e(r)}</button>`).join('')
+    + (st.hasFinal ? `<button class="btn small${st.phase.startsWith('final') ? ' gold' : ''}" data-final="1">Финал</button>` : '')
+    + '<button class="btn small ghost" data-end="1">Итоги</button>';
+}
+
+$('#newGameBtn').addEventListener('click', (ev) => {
+  const b = ev.currentTarget;
+  if (b.dataset.sure) { act('newGame'); b.dataset.sure = ''; b.textContent = 'Новая игра (сбросить счёт)'; }
+  else { b.dataset.sure = '1'; b.textContent = 'Нажмите ещё раз, чтобы сбросить'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Новая игра (сбросить счёт)'; }, 4000); }
+});
+
+$('#packFile').addEventListener('change', async (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  try {
+    const pack = JSON.parse(await file.text());
+    const r = await act('loadPack', { pack });
+    if (r) S.toast('Пакет загружен');
+  } catch { S.toast('Файл не похож на JSON'); }
+  ev.target.value = '';
+});
+</script>
+</body>
+</html>
