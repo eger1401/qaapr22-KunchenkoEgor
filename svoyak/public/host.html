@@ -195,6 +195,7 @@ function render() {
     el.querySelectorAll('[data-round]').forEach((b) => b.onclick = () => act('goRound', { round: Number(b.dataset.round) }));
     el.querySelector('[data-final]') && (el.querySelector('[data-final]').onclick = () => act('finalStart'));
     el.querySelector('[data-end]').onclick = () => act('end');
+    bindRestart(el);
   });
   const cheat = document.querySelector('a[href="cheat.html"], a[data-cheat]');
   if (cheat) { cheat.dataset.cheat = '1'; cheat.href = st.online ? st.online.cheat : 'cheat.html'; }
@@ -351,13 +352,28 @@ function ctrlHtml() {
       const sorted = [...st.players].sort((a, b) => b.score - a.score);
       return `<h2>Итоги</h2>${sorted[0] ? `<div class="answering-name" style="color:var(--gold)">${e(sorted[0].name)}</div>` : ''}
         ${S.scoresHtml(st)}
-        <p class="muted" style="margin:0">Чтобы сыграть ещё раз, откройте «Пакет вопросов и новая игра» ниже.</p>`;
+        <button class="btn gold wide" data-restart="1">Начать заново</button>`;
     }
   }
   return '';
 }
 
+// «Начать заново»: второе нажатие подтверждает, счёт обнуляется, игроки остаются
+function bindRestart(el) {
+  el.querySelectorAll('[data-restart]').forEach((b) => b.onclick = () => {
+    if (b.dataset.sure) {
+      act('newGame').then((r) => r && S.toast('Новая игра: счёт обнулён'));
+      return;
+    }
+    b.dataset.sure = '1';
+    const label = b.textContent;
+    b.textContent = 'Нажмите ещё раз: счёт обнулится';
+    setTimeout(() => { b.dataset.sure = ''; b.textContent = label; }, 4000);
+  });
+}
+
 function bindCtrl(el) {
+  bindRestart(el);
   el.querySelectorAll('[data-act]').forEach((b) => b.onclick = () => act(b.dataset.act));
   el.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => {
     const [t, i] = b.dataset.pick.split(':').map(Number);
@@ -415,7 +431,8 @@ function bindPlayers(el) {
 function roundsHtml() {
   return st.rounds.map((r, i) => `<button class="btn small${i === st.board.index && !st.phase.startsWith('final') && st.phase !== 'end' && st.phase !== 'lobby' ? ' gold' : ''}" data-round="${i}">${e(r)}</button>`).join('')
     + (st.hasFinal ? `<button class="btn small${st.phase.startsWith('final') ? ' gold' : ''}" data-final="1">Финал</button>` : '')
-    + '<button class="btn small ghost" data-end="1">Итоги</button>';
+    + '<button class="btn small ghost" data-end="1">Итоги</button>'
+    + '<button class="btn bad wide" data-restart="1" style="flex-basis:100%">Начать заново</button>';
 }
 
 $('#newGameBtn').addEventListener('click', (ev) => {
