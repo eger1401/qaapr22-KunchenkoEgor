@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Свояк — шпаргалка</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .theme-block { display: grid; gap: 6px; }
+  .theme-block h3 { font-size: 16px; color: var(--gold); }
+  .qa { display: grid; grid-template-columns: 4ch minmax(0,1fr); gap: 10px; padding: 8px 10px; background: var(--bg); border-radius: 10px; }
+  .qa .price { text-align: right; }
+  .qa b { color: var(--good); }
+  .qa small { color: var(--muted); display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>Шпаргалка ведущего</h1></div>
+  <p class="muted" style="margin:0">Откройте на втором устройстве, если транслируете свой телефон на ТВ.</p>
+  <form id="f" class="card row" hidden>
+    <label class="label" for="pin" style="flex-basis:100%">PIN ведущего</label>
+    <input id="pin" type="text" inputmode="numeric" required>
+    <button class="btn gold wide" type="submit">Показать ответы</button>
+  </form>
+  <div id="out" class="wrap"></div>
+</div>
+<script src="client.js"></script>
+<script>
+const e = S.esc;
+async function load(pin) {
+  const r = await fetch('/cheat.json?key=' + encodeURIComponent(pin));
+  if (!r.ok) { document.getElementById('f').hidden = false; if (pin) S.toast('Неверный PIN'); return; }
+  S.store('svoyak.hostKey', pin);
+  document.getElementById('f').hidden = true;
+  const pack = await r.json();
+  const qa = (q) => `<div class="qa"><span class="price">${q.price ?? ''}</span><div><small>${e(q.text)}${q.type === 'cat' ? ' · кот в мешке' : ''}</small><b>${e(q.answer)}</b></div></div>`;
+  document.getElementById('out').innerHTML = `<h2>${e(pack.title)}</h2>` + pack.rounds.map((r) => `
+    <div class="card"><span class="label">${e(r.name)}</span>
+      ${r.themes.map((t) => `<div class="theme-block"><h3>${e(t.name)}</h3>${t.questions.map(qa).join('')}</div>`).join('')}
+    </div>`).join('') + (pack.final ? `<div class="card"><span class="label">Финал · ${e(pack.final.theme || '')}</span>${qa(pack.final)}</div>` : '');
+}
+document.getElementById('f').addEventListener('submit', (ev) => { ev.preventDefault(); load(document.getElementById('pin').value.trim()); });
+load(S.store('svoyak.hostKey') || '');
+</script>
+</body>
+</html>

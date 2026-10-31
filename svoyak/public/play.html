@@ -153,7 +153,7 @@ function mainHtml(me, f, myFinal) {
       const q = st.q;
       let head = `<div class="q-head"><span class="label">${e(q.theme)}</span><span class="price">${q.price}</span></div>`;
       if (q.type === 'cat') head += '<div><span class="tag">Кот в мешке</span></div>';
-      let body = `<div class="q-text">${e(q.text)}</div>`;
+      let body = `<div class="q-text">${e(q.text)}</div>${S.imageHtml(q)}`;
       if (st.phase === 'reveal') {
         return head + body + `<div class="answer">Ответ: <b>${e(q.answer)}</b></div>`;
       }

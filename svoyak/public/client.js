@@ -141,5 +141,13 @@ const S = (() => {
   }
   requestAnimationFrame(tickTimers);
 
-  return { connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
+  function mediaUrl(src) {
+    if (!src) return '';
+    return /^(https?:)?\/\//.test(src) || src.startsWith('/') ? src : '/media/' + src.split('/').map(encodeURIComponent).join('/');
+  }
+  function imageHtml(q) {
+    return q && q.image ? `<img class="q-img" src="${esc(mediaUrl(q.image))}" alt="">` : '';
+  }
+
+  return { mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

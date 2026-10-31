@@ -31,6 +31,8 @@
   .join { text-align: center; display: grid; gap: 2vh; }
   .join code { font-family: var(--display); color: var(--gold); font-size: 2.4em; word-break: break-all; }
   .timer { max-width: 40vw; width: 100%; margin: 0 auto; height: 1vh; }
+  .q-img { max-height: 45vh; }
+  #sound { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); }
   .fin { display: grid; gap: 1vh; max-width: 60ch; margin: 0 auto; width: 100%; }
 </style>
 </head>
@@ -38,14 +40,35 @@
   <div class="top"><h1>Свояк</h1><span id="round" class="muted"></span><span id="conn" class="dot"></span></div>
   <div id="stage"></div>
   <div id="bar" class="bar"></div>
+  <button id="sound" class="btn small ghost" type="button">Включить звук</button>
 <script src="client.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const e = S.esc;
 let lastKey = '';
 let prevAnswering = null;
+const audio = new Audio();
+let lastMediaNonce; // undefined до первого состояния
+// браузер разрешает звук только после нажатия на странице
+$('#sound').addEventListener('click', () => {
+  S.beep(660, 120); // любое нажатие разрешает странице играть звук
+  $('#sound').hidden = true;
+});
+function syncAudio(st) {
+  const m = st.media;
+  const nonce = m ? m.nonce : null;
+  if (nonce === lastMediaNonce) return;
+  const first = lastMediaNonce === undefined;
+  lastMediaNonce = nonce;
+  if (!st.q || !st.q.audio || !m || !m.playing || first) { audio.pause(); return; }
+  audio.src = S.mediaUrl(st.q.audio);
+  audio.currentTime = 0;
+  audio.play().catch(() => { $('#sound').hidden = false; });
+}
 
 S.connect({ role: 'screen' }, (st) => {
+  syncAudio(st);
+  if (st.phase !== 'question' && st.phase !== 'reveal' && !audio.paused) audio.pause();
   $('#round').textContent = st.phase === 'lobby' ? '' : st.phase.startsWith('final') ? 'Финал' : st.board.name;
   $('#bar').innerHTML = st.players.map((p) => `<div class="pl${p.id === st.answering ? ' answering' : ''}${p.id === st.chooser && st.phase === 'board' ? ' chooser' : ''}">
     <b>${e(p.name)}</b><span class="${p.score < 0 ? 'neg' : ''}">${p.score}</span></div>`).join('');
@@ -70,7 +93,7 @@ function stage(st) {
     case 'reveal': {
       const q = st.q;
       let h = `<div class="q-meta"><span class="muted">${e(q.theme)}</span><span class="price">${q.price}</span>${q.type === 'cat' ? '<span class="tag">Кот в мешке</span>' : ''}</div>
-        <div class="big-q">${e(q.text)}</div>`;
+        <div class="big-q">${e(q.text)}</div>${S.imageHtml(q)}`;
       if (st.phase === 'reveal') return h + `<div class="ans">${e(q.answer)}</div>`;
       if (st.answering) return h + `<div class="who">${e(S.nameOf(st, st.answering))}</div><div class="timer" data-timer-start="${st.answeringAt}"><i></i></div>`;
       if (st.buzzOpen) return h + '<div class="open-ind">Жмите!</div>';

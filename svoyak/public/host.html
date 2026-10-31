@@ -22,6 +22,10 @@
   .log { font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
   details summary { cursor: pointer; font-weight: 600; }
   .final-row { display: grid; gap: 8px; padding: 10px; background: var(--bg); border-radius: 10px; }
+  .peek { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .btn.cast-on { border-color: var(--buzz); background: var(--buzz); color: #fff; }
+  body.cast .no-cast { display: none !important; }
+  .packs { display: grid; gap: 8px; }
 </style>
 </head>
 <body>
@@ -39,7 +43,10 @@
     <div class="wrap">
       <div class="top">
         <h1>Свояк · ведущий</h1>
-        <span id="conn" class="dot" title="связь с сервером"></span>
+        <div class="row" style="flex-wrap:nowrap">
+          <button class="btn small ghost" id="castBtn" type="button" aria-pressed="false">Трансляция: выкл</button>
+          <span id="conn" class="dot" title="связь с сервером"></span>
+        </div>
       </div>
       <div id="ctrl" class="card"></div>
       <div class="card">
@@ -50,6 +57,7 @@
         <span class="label">Раунды</span>
         <div id="rounds" class="row"></div>
       </div>
+      <div class="card no-cast" id="castHint" hidden></div>
       <div class="card">
         <span class="label">Подключение</span>
         <div id="info"></div>
@@ -58,7 +66,10 @@
         <details>
           <summary>Пакет вопросов и новая игра</summary>
           <div style="display:grid;gap:12px;margin-top:12px">
-            <p class="muted" style="margin:0">Загрузите свой файл .json в том же формате, что questions.json. Игроки останутся, счёт обнулится.</p>
+            <p class="muted" style="margin:0">При смене пакета игроки останутся, а счёт обнулится.</p>
+            <div id="packs" class="packs"></div>
+            <a class="btn ghost no-cast" href="/cheat" target="_blank" style="text-align:center;text-decoration:none">Шпаргалка со всеми ответами</a>
+            <span class="label" style="margin-top:6px">Или свой файл .json</span>
             <input id="packFile" type="file" accept=".json,application/json">
             <div id="confirmNew" class="row">
               <button class="btn ghost" id="newGameBtn" type="button">Новая игра (сбросить счёт)</button>
@@ -66,7 +77,7 @@
           </div>
         </details>
       </div>
-      <div class="card">
+      <div class="card no-cast">
         <span class="label">Журнал</span>
         <div id="log" class="log"></div>
       </div>
@@ -84,6 +95,20 @@ let conn = null;
 let open = null; // id игрока, у которого раскрыты настройки
 const keys = {};
 let prevAnswering = null;
+let cast = S.store('svoyak.cast') === '1';
+const audio = new Audio();
+let lastMediaNonce; // undefined до первого состояния
+
+function applyCast() {
+  document.body.classList.toggle('cast', cast);
+  const b = $('#castBtn');
+  b.textContent = cast ? 'Трансляция: вкл' : 'Трансляция: выкл';
+  b.classList.toggle('cast-on', cast);
+  b.setAttribute('aria-pressed', String(cast));
+  for (const k in keys) delete keys[k];
+  render();
+}
+$('#castBtn').addEventListener('click', () => { cast = !cast; S.store('svoyak.cast', cast ? '1' : '0'); applyCast(); });
 
 async function act(type, extra = {}) {
   try { return await S.post({ role: 'host', key, type, ...extra }); }
@@ -108,6 +133,7 @@ async function login(k) {
 }
 $('#loginForm').addEventListener('submit', (ev) => { ev.preventDefault(); login($('#pinInput').value.trim()); });
 login(key);
+applyCast();
 
 function section(id, k, html, bind) {
   if (keys[id] === k) return;
@@ -120,11 +146,13 @@ function section(id, k, html, bind) {
 
 function render() {
   if (!st) return;
+  syncAudio();
+  if (st.phase !== 'question' && st.phase !== 'reveal' && !audio.paused) audio.pause();
   if (st.answering && st.answering !== prevAnswering) { S.beep(660, 120); setTimeout(() => S.beep(990, 220), 130); S.vibrate([100, 50, 100]); }
   prevAnswering = st.answering;
 
   const fk = st.final ? JSON.stringify(st.final) : '';
-  section('ctrl', JSON.stringify([st.phase, st.board, st.q, st.buzzOpen, st.buzzOpenedAt, st.answering, st.wrong, st.chooser, fk, st.roundLeft,
+  section('ctrl', JSON.stringify([cast, st.media, st.screens > 0, st.phase, st.board, st.q, st.buzzOpen, st.buzzOpenedAt, st.answering, st.wrong, st.chooser, fk, st.roundLeft,
     st.phase === 'lobby' || st.phase === 'end' || (st.q && st.q.type === 'cat') ? st.players : st.players.map((p) => p.name)]), ctrlHtml(), bindCtrl);
   section('players', JSON.stringify([st.players, open, st.answering, st.chooser, st.phase]), playersHtml(), bindPlayers);
   section('rounds', JSON.stringify([st.rounds, st.board.index, st.phase, st.hasFinal]), roundsHtml(), (el) => {
@@ -132,16 +160,50 @@ function render() {
     el.querySelector('[data-final]') && (el.querySelector('[data-final]').onclick = () => act('finalStart'));
     el.querySelector('[data-end]').onclick = () => act('end');
   });
-  section('info', JSON.stringify([st.urls, st.pin]), `
+  section('info', JSON.stringify([cast, st.urls, st.pin]), `
     <div class="urls" style="display:grid;gap:6px">
       <div>Игрокам: ${st.urls.map((u) => `<code>${e(u)}/play</code>`).join(' или ')}</div>
+      ${cast ? '<div class="muted">PIN и журнал скрыты, пока идёт трансляция</div>' : `
       <div>Большой экран: ${st.urls.map((u) => `<code>${e(u)}/screen</code>`).join(' или ')}</div>
-      <div class="muted">PIN ведущего: <b>${e(st.pin)}</b></div>
+      <div class="muted">PIN ведущего: <b>${e(st.pin)}</b></div>`}
     </div>`);
+  section('packs', JSON.stringify([st.packs, st.title]), (st.packs || []).map((p) =>
+    `<button class="btn${p.title === st.title ? ' gold' : ''}" data-pack="${e(p.file)}">${e(p.title)}</button>`).join(''), (el) => {
+    el.querySelectorAll('[data-pack]').forEach((b) => b.onclick = () => {
+      if (b.dataset.sure) act('usePack', { file: b.dataset.pack }).then((r) => r && S.toast('Пакет загружен'));
+      else { b.dataset.sure = '1'; b.textContent = 'Нажмите ещё раз: счёт обнулится'; }
+    });
+  });
   section('log', JSON.stringify(st.log), st.log.map((l) => `<div>${new Date(l.at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })} · ${e(l.text)}</div>`).join('') || 'Пока пусто');
 }
 
 function nm(id) { return e(S.nameOf(st, id)); }
+
+// ответ для ведущего; в режиме трансляции виден только пока держишь кнопку
+function answerHtml(answer) {
+  if (!cast) return `<div class="answer">Ответ: <b>${e(answer)}</b></div>`;
+  return `<button class="btn ghost wide peek" type="button" data-peek="${e(answer)}">Держите, чтобы подсмотреть ответ</button>`;
+}
+
+function audioHtml(q) {
+  if (!q.audio) return '';
+  const where = st.screens > 0 ? 'играет на большом экране' : 'играет на этом телефоне';
+  return `<div class="row"><button class="btn gold" data-act="playMedia">▶ Музыка</button><button class="btn ghost" data-act="stopMedia">■ Стоп</button></div>
+    <span class="muted" style="font-size:13px">Звук ${where}</span>`;
+}
+
+// звук играет на /screen, а если экрана нет — на телефоне ведущего
+function syncAudio() {
+  const m = st.media;
+  const nonce = m ? m.nonce : null;
+  if (nonce === lastMediaNonce) return;
+  const first = lastMediaNonce === undefined;
+  lastMediaNonce = nonce;
+  if (!st.q || !st.q.audio || !m || !m.playing || st.screens > 0 || first) { audio.pause(); return; }
+  audio.src = S.mediaUrl(st.q.audio);
+  audio.currentTime = 0;
+  audio.play().catch(() => S.toast('Не удалось включить звук'));
+}
 
 function ctrlHtml() {
   switch (st.phase) {
@@ -157,8 +219,8 @@ function ctrlHtml() {
         : st.hasFinal ? '<button class="btn gold wide" data-act="finalStart">Финал</button>' : '<button class="btn gold wide" data-act="end">Итоги</button>';
       return `<div class="q-head"><h2>${e(st.board.name)}</h2><span class="muted">осталось ${st.roundLeft}</span></div>
         <div>Выбирает: <b>${nm(st.chooser)}</b></div>
-        ${done ? '<div class="status">Раунд сыгран</div>' + next : '<span class="muted" style="font-size:14px">Нажмите на цену, которую назвал игрок. Рамкой отмечен кот в мешке.</span>'}
-        ${S.boardHtml(st, { clickable: true, cats: st.answersPreview })}`;
+        ${done ? '<div class="status">Раунд сыгран</div>' + next : '<span class="muted" style="font-size:14px">Нажмите на цену, которую назвал игрок.' + (cast ? '' : ' Рамкой отмечен кот в мешке.') + '</span>'}
+        ${S.boardHtml(st, { clickable: true, cats: cast ? null : st.answersPreview })}`;
     }
     case 'question':
     case 'reveal': {
@@ -166,7 +228,8 @@ function ctrlHtml() {
       let h = `<div class="q-head"><span class="label">${e(q.theme)}</span><span class="price">${q.price}</span></div>
         ${q.type === 'cat' ? '<div><span class="tag">Кот в мешке</span></div>' : ''}
         <div class="q-text">${e(q.text)}</div>
-        <div class="answer">Ответ: <b>${e(q.answer)}</b></div>`;
+        ${S.imageHtml(q)}${audioHtml(q)}
+        ${st.phase === 'reveal' ? `<div class="answer">Ответ: <b>${e(q.answer)}</b></div>` : answerHtml(q.answer)}`;
       if (st.phase === 'reveal') return h + '<button class="btn gold wide" data-act="toBoard">К табло</button>';
       if (st.answering) {
         return h + `<div class="answering-name">${nm(st.answering)}</div>
@@ -194,13 +257,13 @@ function ctrlHtml() {
       const f = st.final;
       return `<span class="label">Финал</span><h2>${e(f.theme)}</h2>
         <p class="muted" style="margin:0">Объявите тему. Игроки с плюсовым счётом делают ставки на телефонах.</p>
-        ${f.players.map((p) => `<div class="score-row"><span class="nm">${nm(p.id)}</span><span>${p.hasBet ? 'ставка ' + p.bet : '<span class="muted">думает…</span>'}</span></div>`).join('')}
+        ${f.players.map((p) => `<div class="score-row"><span class="nm">${nm(p.id)}</span><span>${p.hasBet ? (cast ? 'поставил' : 'ставка ' + p.bet) : '<span class="muted">думает…</span>'}</span></div>`).join('')}
         <button class="btn gold wide" data-act="finalQuestion" ${f.players.every((p) => p.hasBet) ? '' : ''}>Показать вопрос${f.players.every((p) => p.hasBet) ? '' : ' (не все поставили)'}</button>`;
     }
     case 'final-question': {
       const f = st.final;
       return `<span class="label">Финал · ${e(f.theme)}</span><div class="q-text">${e(f.text)}</div>
-        <div class="answer">Ответ: <b>${e(f.answer)}</b></div>
+        ${answerHtml(f.answer)}
         ${f.players.map((p) => `<div class="score-row"><span class="nm">${nm(p.id)}</span><span>${p.hasAnswer ? 'ответил' : (p.hasBet ? '<span class="muted">пишет…</span>' : '<span class="muted">без ставки</span>')}</span></div>`).join('')}
         <button class="btn gold wide" data-act="finalReveal">Вскрыть ответы</button>`;
     }
@@ -236,6 +299,14 @@ function bindCtrl(el) {
   });
   el.querySelectorAll('[data-round]').forEach((b) => b.onclick = () => act('goRound', { round: Number(b.dataset.round) }));
   el.querySelectorAll('[data-assign]').forEach((b) => b.onclick = () => act('assign', { player: b.dataset.assign }));
+  el.querySelectorAll('[data-peek]').forEach((b) => {
+    const label = b.textContent;
+    const show = (ev) => { ev.preventDefault(); b.textContent = b.dataset.peek; };
+    const hide = () => { b.textContent = label; };
+    b.addEventListener('pointerdown', show);
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => b.addEventListener(t, hide));
+    b.addEventListener('contextmenu', (ev) => ev.preventDefault());
+  });
   el.querySelectorAll('[data-judge]').forEach((b) => b.onclick = () => act('finalJudge', { player: b.dataset.judge, ok: b.dataset.ok === '1' }));
 }
 

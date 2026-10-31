@@ -12,7 +12,26 @@ const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
-const DEFAULT_PACK = path.join(ROOT, 'questions.json');
+const PACKS_DIR = path.join(ROOT, 'packs');
+const MEDIA_DIR = path.join(ROOT, 'media');
+
+function listPacks() {
+  let files = [];
+  try { files = fs.readdirSync(PACKS_DIR).filter((f) => f.endsWith('.json')).sort(); } catch { /* нет папки */ }
+  return files.map((file) => {
+    try { return { file, title: JSON.parse(fs.readFileSync(path.join(PACKS_DIR, file), 'utf8')).title || file }; }
+    catch { return { file, title: file + ' (ошибка в файле)' }; }
+  });
+}
+
+function defaultPackFile() {
+  const files = listPacks().map((p) => p.file);
+  const wanted = process.env.PACK && (process.env.PACK.endsWith('.json') ? process.env.PACK : process.env.PACK + '.json');
+  if (wanted && files.includes(wanted)) return wanted;
+  if (files.includes('svoi.json')) return 'svoi.json';
+  if (!files.length) throw new Error('В папке packs нет ни одного пакета вопросов');
+  return files[0];
+}
 const FALSE_START_MS = 1000;
 
 // ---------- состояние ----------
@@ -55,6 +74,8 @@ function validatePack(p) {
         q.text = String(q.text || '');
         q.answer = String(q.answer || '');
         q.type = q.type === 'cat' ? 'cat' : 'normal';
+        if (q.image) q.image = String(q.image);
+        if (q.audio) q.audio = String(q.audio);
       });
     });
   });
@@ -70,7 +91,7 @@ try {
   console.log('Продолжаем сохранённую игру (data/state.json).');
 } catch {
   const pin = process.env.HOST_PIN || String(crypto.randomInt(1000, 10000));
-  game = freshGame(loadPack(DEFAULT_PACK), pin);
+  game = freshGame(loadPack(path.join(PACKS_DIR, defaultPackFile())), pin);
 }
 if (process.env.HOST_PIN) game.pin = process.env.HOST_PIN;
 const lockout = {}; // id -> время, до которого игрок заблокирован за фальстарт
@@ -135,7 +156,8 @@ const hostActions = {
     if (!q) throw new Error('Нет такого вопроса');
     if (game.used[qKey(game.round, t, i)]) throw new Error('Вопрос уже сыгран');
     game.used[qKey(game.round, t, i)] = true;
-    game.q = { t, i, theme: theme.name, price: q.price, text: q.text, answer: q.answer, type: q.type };
+    game.q = { t, i, theme: theme.name, price: q.price, text: q.text, answer: q.answer, type: q.type, image: q.image, audio: q.audio };
+    game.media = null;
     game.phase = 'question';
     game.buzzOpen = false;
     game.answering = null;
@@ -146,6 +168,13 @@ const hostActions = {
     if (game.phase !== 'question' || game.answering) return;
     game.buzzOpen = true;
     game.buzzOpenedAt = Date.now();
+  },
+  playMedia() {
+    if (!game.q || !game.q.audio) return;
+    game.media = { nonce: Date.now(), playing: true };
+  },
+  stopMedia() {
+    game.media = { nonce: Date.now(), playing: false };
   },
   closeBuzz() {
     game.buzzOpen = false;
@@ -267,6 +296,10 @@ const hostActions = {
     keepPlayers.forEach(({ id, name: n }) => { game.players[id] = { name: n, score: 0 }; game.order.push(id); });
     log('Новая игра');
   },
+  usePack({ file }) {
+    if (!listPacks().some((p) => p.file === file)) throw new Error('Нет такого пакета');
+    hostActions.loadPack({ pack: JSON.parse(fs.readFileSync(path.join(PACKS_DIR, file), 'utf8')) });
+  },
   loadPack({ pack }) {
     const p = validatePack(pack);
     const keepPlayers = game.order.map((id) => ({ id, name: game.players[id].name }));
@@ -358,7 +391,8 @@ function view(role, id) {
   };
 
   if (game.q) {
-    v.q = { t: game.q.t, i: game.q.i, theme: game.q.theme, price: game.q.price, type: game.q.type, text: game.q.text };
+    v.q = { t: game.q.t, i: game.q.i, theme: game.q.theme, price: game.q.price, type: game.q.type, text: game.q.text, image: game.q.image, audio: game.q.audio };
+    v.media = game.media || null;
     if (isHost || game.phase === 'reveal') v.q.answer = game.q.answer;
   }
 
@@ -388,6 +422,8 @@ function view(role, id) {
 
   if (isHost) {
     v.pin = game.pin;
+    v.packs = listPacks();
+    v.screens = [...clients].filter((c) => c.role === 'screen').length;
     v.log = game.log.slice(0, 12);
     v.urls = lanUrls();
     v.answersPreview = curRound().themes.map((t) => t.questions.map((q) => (q.type === 'cat' ? 'cat' : '')));
@@ -434,7 +470,11 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
-const ROUTES = { '/': 'index.html', '/host': 'host.html', '/play': 'play.html', '/screen': 'screen.html' };
+const ROUTES = { '/': 'index.html', '/host': 'host.html', '/play': 'play.html', '/screen': 'screen.html', '/cheat': 'cheat.html' };
+const MEDIA_TYPES = {
+  '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.aac': 'audio/aac',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
+};
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -472,12 +512,35 @@ const server = http.createServer(async (req, res) => {
     res.write('retry: 1500\n\n');
     const c = { res, role, id };
     clients.add(c);
-    if (role === 'player') broadcast(); else send(c);
+    if (role === 'host') send(c); else broadcast();
     req.on('close', () => {
       clients.delete(c);
-      if (role === 'player') broadcast();
+      if (role !== 'host') broadcast();
     });
     return;
+  }
+
+  if (url.pathname === '/cheat.json') {
+    if (url.searchParams.get('key') !== game.pin) return json(res, 403, { error: 'Неверный PIN' });
+    return json(res, 200, game.pack);
+  }
+
+  if (url.pathname.startsWith('/media/')) {
+    const full = path.normalize(path.join(MEDIA_DIR, decodeURIComponent(url.pathname.slice(7))));
+    if (!full.startsWith(MEDIA_DIR + path.sep)) { res.writeHead(403); return res.end(); }
+    return fs.stat(full, (err, stat) => {
+      if (err || !stat.isFile()) { res.writeHead(404); return res.end(); }
+      const type = MEDIA_TYPES[path.extname(full).toLowerCase()] || 'application/octet-stream';
+      const range = /bytes=(\d*)-(\d*)/.exec(req.headers.range || '');
+      if (range) {
+        const start = range[1] ? Number(range[1]) : 0;
+        const end = range[2] ? Math.min(Number(range[2]), stat.size - 1) : stat.size - 1;
+        res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1 });
+        return fs.createReadStream(full, { start, end }).pipe(res);
+      }
+      res.writeHead(200, { 'Content-Type': type, 'Content-Length': stat.size, 'Accept-Ranges': 'bytes' });
+      fs.createReadStream(full).pipe(res);
+    });
   }
 
   if (url.pathname === '/api' && req.method === 'POST') {
