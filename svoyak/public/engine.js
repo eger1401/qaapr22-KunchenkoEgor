@@ -33,7 +33,7 @@
           q.price = Number(q.price) || 0;
           q.text = String(q.text || '');
           q.answer = String(q.answer || '');
-          q.type = q.type === 'cat' ? 'cat' : 'normal';
+          q.type = TYPE_ALIASES[q.type] || (TYPES.includes(q.type) ? q.type : 'normal');
           if (q.image) q.image = String(q.image);
           if (q.audio) q.audio = String(q.audio);
         });
@@ -42,6 +42,19 @@
     if (p.final && !p.final.text) delete p.final;
     p.title = p.title || 'Свояк';
     return p;
+  }
+
+  // особые вопросы: cat — кот в мешке (передать другому), norisk — без риска (×2, без минуса),
+  // auction — ставка выбравшего, plusminus — плюс на минус (жмут все, ошибка не отнимает очки)
+  const TYPES = ['normal', 'cat', 'norisk', 'auction', 'plusminus'];
+  const TYPE_ALIASES = { stake: 'auction', bet: 'auction', 'no-risk': 'norisk' };
+
+  // сколько получит за верный ответ и потеряет за неверный
+  function points(q) {
+    if (q.type === 'norisk') return { win: q.price * 2, lose: 0 };
+    if (q.type === 'plusminus') return { win: q.price, lose: 0 };
+    if (q.type === 'auction') { const s = q.stake || q.price; return { win: s, lose: s }; }
+    return { win: q.price, lose: q.price };
   }
 
   const randInt = (n) => Math.floor(Math.random() * n);
@@ -82,6 +95,24 @@
       return game.order.filter((id) => game.players[id] && game.players[id].score > 0);
     }
 
+    // ставка на вопрос «Ставка»: от цены вопроса до всего счёта (ва-банк)
+    function stakeRange(id) {
+      const score = game.players[id] ? game.players[id].score : 0;
+      return { min: game.q.price, max: Math.max(score, game.q.price) };
+    }
+    function setStake(id, amount) {
+      if (game.phase !== 'question' || !game.q || game.q.type !== 'auction') throw new Error('Сейчас ставки нет');
+      if (game.q.stake) throw new Error('Ставка уже сделана');
+      if (!id || !game.players[id]) throw new Error('Сначала выберите, кто делает ставку');
+      const { min, max } = stakeRange(id);
+      const a = Math.round(Number(amount));
+      if (!(a >= min && a <= max)) throw new Error(`Ставка от ${min} до ${max}`);
+      game.q.stake = a;
+      game.answering = id;
+      game.answeringAt = Date.now();
+      log(`${name(id)} ставит ${a}`);
+    }
+
     // ---------- действия ----------
 
     const hostActions = {
@@ -104,10 +135,14 @@
         game.phase = 'question';
         game.answering = null;
         game.wrong = [];
-        // кнопка у игроков активна сразу после выбора вопроса (кроме кота в мешке)
-        game.buzzOpen = q.type !== 'cat';
+        // обычный вопрос и «плюс на минус»: кнопка у игроков активна сразу
+        game.buzzOpen = q.type === 'normal' || q.type === 'plusminus';
         game.buzzOpenedAt = Date.now();
-        log(`${theme.name} за ${q.price}${q.type === 'cat' ? ' — кот в мешке' : ''}`);
+        const chooser = game.players[game.chooser] ? game.chooser : null;
+        if (q.type === 'norisk' && chooser) { game.answering = chooser; game.answeringAt = Date.now(); }
+        if (q.type === 'auction') { game.q.stake = null; game.q.staker = chooser; }
+        const labels = { cat: 'кот в мешке', norisk: 'без риска', auction: 'ставка', plusminus: 'плюс на минус' };
+        log(`${theme.name} за ${q.price}${labels[q.type] ? ' — ' + labels[q.type] : ''}`);
       },
       openBuzz() {
         if (game.phase !== 'question' || game.answering) return;
@@ -128,16 +163,25 @@
         if (game.phase !== 'question') throw new Error('Сейчас нет вопроса');
         if (!game.players[player]) throw new Error('Нет такого игрока');
         game.buzzOpen = false;
+        if (game.q.type === 'auction' && !game.q.stake) {
+          game.q.staker = player; // ставку делает этот игрок, отвечает он же
+          log(`Ставку делает ${name(player)}`);
+          return;
+        }
         game.answering = player;
         game.answeringAt = Date.now();
         log(`Отвечает ${name(player)}`);
       },
+      stake({ amount }) {
+        setStake(game.q && game.q.staker, amount);
+      },
       correct() {
         if (game.phase !== 'question' || !game.answering) return;
         const id = game.answering;
-        game.players[id].score += game.q.price;
+        const { win } = points(game.q);
+        game.players[id].score += win;
         game.chooser = id;
-        log(`${name(id)} отвечает верно: +${game.q.price}`);
+        log(`${name(id)} отвечает верно: +${win}`);
         game.answering = null;
         game.buzzOpen = false;
         game.phase = 'reveal';
@@ -145,11 +189,12 @@
       wrong() {
         if (game.phase !== 'question' || !game.answering) return;
         const id = game.answering;
-        game.players[id].score -= game.q.price;
+        const { lose } = points(game.q);
+        game.players[id].score -= lose;
         game.wrong.push(id);
-        log(`${name(id)} ошибается: −${game.q.price}`);
+        log(`${name(id)} ошибается${lose ? ': −' + lose : ', без минуса'}`);
         game.answering = null;
-        if (game.q.type !== 'cat' && eligibleToBuzz().length) {
+        if ((game.q.type === 'normal' || game.q.type === 'plusminus') && eligibleToBuzz().length) {
           game.buzzOpen = true; // остальные могут попробовать
           game.buzzOpenedAt = Date.now();
         } else {
@@ -281,6 +326,10 @@
         log(`Первым нажал ${name(id)}`);
         return { first: true };
       },
+      stake(id, { amount }) {
+        if (!game.q || game.q.staker !== id) throw new Error('Ставку делает другой игрок');
+        setStake(id, amount);
+      },
       bet(id, { amount }) {
         if (game.phase !== 'final-bets') throw new Error('Ставки сейчас не принимаются');
         const p = game.players[id];
@@ -337,6 +386,12 @@
       if (game.q) {
         v.q = { t: game.q.t, i: game.q.i, theme: game.q.theme, price: game.q.price, type: game.q.type, text: game.q.text, image: game.q.image, audio: game.q.audio };
         v.media = game.media || null;
+        Object.assign(v.q, points(game.q));
+        if (game.q.type === 'auction') {
+          v.q.stake = game.q.stake || null;
+          v.q.staker = game.q.staker || null;
+          if (game.q.staker) v.q.stakeRange = stakeRange(game.q.staker);
+        }
         if (isHost || game.phase === 'reveal') v.q.answer = game.q.answer;
       }
 
@@ -370,7 +425,7 @@
         v.screens = hooks.screens();
         v.log = game.log.slice(0, 12);
         v.urls = hooks.urls();
-        v.answersPreview = curRound().themes.map((t) => t.questions.map((q) => (q.type === 'cat' ? 'cat' : '')));
+        v.answersPreview = curRound().themes.map((t) => t.questions.map((q) => (q.type === 'normal' ? '' : q.type)));
       }
       if (role === 'player') v.me = id;
       return v;

@@ -178,12 +178,25 @@ function mainHtml(me, f, myFinal) {
     case 'reveal': {
       const q = st.q;
       let head = `<div class="q-head"><span class="label">${e(q.theme)}</span><span class="price">${q.price}</span></div>`;
-      if (q.type === 'cat') head += '<div><span class="tag">Кот в мешке</span></div>';
+      head += S.specialHtml(q);
       let body = `<div class="q-text">${e(q.text)}</div>${S.imageHtml(q)}`;
       if (st.phase === 'reveal') {
         return head + body + `<div class="answer">Ответ: <b>${e(q.answer)}</b></div>`;
       }
-      if (q.type === 'cat') {
+      if (q.type === 'auction' && !q.stake) {
+        if (q.staker === id) {
+          const r = q.stakeRange;
+          return head + body + `<form id="stakeForm" class="row">
+            <label class="label" for="stakeInput" style="flex-basis:100%">Ваша ставка: от ${r.min} до ${r.max}</label>
+            <input id="stakeInput" type="number" inputmode="numeric" min="${r.min}" max="${r.max}" required>
+            <button class="btn gold wide" type="submit">Поставить</button>
+            <button class="btn ghost wide" type="button" id="stakeAll" data-max="${r.max}">Ва-банк (${r.max})</button>
+          </form>`;
+        }
+        return head + body + `<p class="muted center">${q.staker ? e(S.nameOf(st, q.staker)) + ' делает ставку…' : 'Ведущий выбирает, кто делает ставку'}</p>`;
+      }
+      if (q.type === 'auction') body += `<p class="center">Ставка: <span class="price">${q.stake}</span></p>`;
+      if (q.type === 'cat' || q.type === 'norisk' || q.type === 'auction') {
         body += st.answering
           ? `<div class="big-msg">${st.answering === id ? 'Отвечаете вы!' : 'Отвечает ' + e(S.nameOf(st, st.answering))}</div>`
           : '<p class="muted center">Ведущий выбирает, кто будет отвечать</p>';
@@ -238,6 +251,15 @@ function bindMain() {
   if (bf) {
     bf.addEventListener('submit', (e) => { e.preventDefault(); sendBet($('#betInput').value); });
     $('#allIn').addEventListener('click', () => sendBet(st.players.find((p) => p.id === id).score));
+  }
+  const sf = $('#stakeForm');
+  if (sf) {
+    const send = async (v) => {
+      try { await S.post({ role: 'player', id, type: 'stake', amount: Number(v) }); document.activeElement.blur(); }
+      catch (err) { S.toast(err.message); }
+    };
+    sf.addEventListener('submit', (ev) => { ev.preventDefault(); send($('#stakeInput').value); });
+    $('#stakeAll').addEventListener('click', (ev) => send(ev.currentTarget.dataset.max));
   }
   const af = $('#answerForm');
   if (af) af.addEventListener('submit', async (e) => {

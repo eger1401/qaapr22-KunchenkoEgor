@@ -156,7 +156,7 @@ const S = (() => {
       <div class="trow">
         <div class="theme">${esc(t.name)}</div>
         ${t.cells.map((c, qi) => {
-          const cat = cats && cats[ti] && cats[ti][qi] === 'cat' ? ' cat' : '';
+          const cat = cats && cats[ti] && cats[ti][qi] ? ' cat' : '';
           if (clickable && !c.used) return `<button class="cell${cat}" data-pick="${ti}:${qi}" aria-label="${esc(t.name)} за ${c.price}">${c.price}</button>`;
           return `<div class="cell${c.used ? ' used' : ''}">${c.used ? '' : c.price}</div>`;
         }).join('')}
@@ -210,5 +210,17 @@ const S = (() => {
     } catch { return ''; }
   }
 
-  return { ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
+  // особые вопросы: название и правило
+  const SPECIAL = {
+    cat: { label: 'Кот в мешке', rule: 'Вопрос передают другому игроку. Кнопки нет.' },
+    norisk: { label: 'Без риска', rule: 'Отвечает только выбравший. Верно — вдвое больше, ошибка без минуса.' },
+    auction: { label: 'Ставка', rule: 'Выбравший ставит от цены вопроса до всего счёта и отвечает сам.' },
+    plusminus: { label: 'Плюс на минус', rule: 'Жмут все. Ошибка не отнимает очки — рискуйте!' },
+  };
+  function specialHtml(q) {
+    const s = q && SPECIAL[q.type];
+    return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
+  }
+
+  return { SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

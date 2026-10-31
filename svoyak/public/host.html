@@ -293,21 +293,34 @@ function ctrlHtml() {
     case 'reveal': {
       const q = st.q;
       let h = `<div class="q-head"><span class="label">${e(q.theme)}</span><span class="price">${q.price}</span></div>
-        ${q.type === 'cat' ? '<div><span class="tag">Кот в мешке</span></div>' : ''}
+        ${S.specialHtml(q)}
         <div class="q-text">${e(q.text)}</div>
         ${S.imageHtml(q)}${audioHtml(q)}
         ${st.phase === 'reveal' ? `<div class="answer">Ответ: <b>${e(q.answer)}</b></div>` : answerHtml(q.answer)}`;
       if (st.phase === 'reveal') return h + '<button class="btn gold wide" data-act="toBoard">К табло</button>';
       if (st.answering) {
         return h + `<div class="answering-name">${nm(st.answering)}</div>
+          ${q.type === 'auction' ? `<div class="status">Ставка: <span class="price">${q.stake}</span></div>` : ''}
           <div class="row">
-            <button class="btn good" data-act="correct">Верно +${q.price}</button>
-            <button class="btn bad" data-act="wrong">Неверно −${q.price}</button>
+            <button class="btn good" data-act="correct">Верно +${q.win}</button>
+            <button class="btn bad" data-act="wrong">Неверно ${q.lose ? '−' + q.lose : '(без минуса)'}</button>
           </div>`;
       }
-      if (q.type === 'cat') {
-        return h + `<span class="label">Кому отдать вопрос?</span>
-          <div class="assign">${st.players.map((p) => `<button class="btn" data-assign="${e(p.id)}">${e(p.name)}</button>`).join('')}</div>
+      const assignList = (big) => `<div class="assign">${st.players.map((p) => `<button class="btn${big ? '' : ' small'}${p.id === st.chooser ? ' ghost' : ''}" data-assign="${e(p.id)}">${e(p.name)}${p.id === st.chooser ? ' (выбирал)' : ''}</button>`).join('')}</div>`;
+      if (q.type === 'auction' && q.staker) {
+        const r = q.stakeRange;
+        return h + `<div class="status">Ставку делает <b>${nm(q.staker)}</b> — от ${r.min} до ${r.max}. Ждём с телефона игрока или введите сами:</div>
+          <div class="row">
+            <input type="number" inputmode="numeric" id="stakeInput" min="${r.min}" max="${r.max}" placeholder="ставка" aria-label="Ставка" style="flex:1 1 120px;width:auto">
+            <button class="btn gold" data-stake-set="1">Поставить</button>
+            <button class="btn" data-stake-all="${r.max}">Ва-банк ${r.max}</button>
+          </div>
+          <details><summary class="muted">Ставку делает другой игрок</summary><div style="margin-top:10px">${assignList(false)}</div></details>
+          <button class="btn ghost wide" data-act="reveal">Показать ответ, пропустить</button>`;
+      }
+      if (q.type === 'cat' || q.type === 'norisk' || q.type === 'auction') {
+        const title = q.type === 'cat' ? 'Кому передать вопрос? Выбравший называет игрока' : q.type === 'auction' ? 'Кто делает ставку?' : 'Кто отвечает?';
+        return h + `<span class="label">${title}</span>${assignList(true)}
           <button class="btn ghost wide" data-act="reveal">Показать ответ</button>`;
       }
       const wrong = st.wrong.length ? `<div class="muted" style="font-size:14px">Уже ошиблись: ${st.wrong.map(nm).join(', ')}</div>` : '';
@@ -373,6 +386,10 @@ function bindRestart(el) {
 
 function bindCtrl(el) {
   bindRestart(el);
+  const ss = el.querySelector('[data-stake-set]');
+  if (ss) ss.onclick = () => { const v = $('#stakeInput').value; if (v !== '') { $('#stakeInput').blur(); act('stake', { amount: Number(v) }); } };
+  const sa = el.querySelector('[data-stake-all]');
+  if (sa) sa.onclick = () => act('stake', { amount: Number(sa.dataset.stakeAll) });
   el.querySelectorAll('[data-act]').forEach((b) => b.onclick = () => act(b.dataset.act));
   el.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => {
     const [t, i] = b.dataset.pick.split(':').map(Number);
