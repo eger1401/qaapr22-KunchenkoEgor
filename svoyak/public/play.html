@@ -181,7 +181,7 @@ function mainHtml(me, f, myFinal) {
       head += S.specialHtml(q);
       let body = `<div class="q-text">${e(q.text)}</div>${S.imageHtml(q)}`;
       if (st.phase === 'reveal') {
-        return head + body + `<div class="answer">Ответ: <b>${e(q.answer)}</b></div>`;
+        return head + body + `<div class="answer">${q.type === 'gift' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>`;
       }
       if (q.type === 'auction' && !q.stake) {
         if (q.staker === id) {
@@ -193,17 +193,17 @@ function mainHtml(me, f, myFinal) {
             <button class="btn ghost wide" type="button" id="stakeAll" data-max="${r.max}">Ва-банк (${r.max})</button>
           </form>`;
         }
-        return head + body + `<p class="muted center">${q.staker ? e(S.nameOf(st, q.staker)) + ' делает ставку…' : 'Ведущий выбирает, кто делает ставку'}</p>`;
+        if (q.staker) return head + body + `<p class="big-msg">${e(S.nameOf(st, q.staker))} делает ставку…</p>`;
       }
       if (q.type === 'auction') body += `<p class="center">Ставка: <span class="price">${q.stake}</span></p>`;
-      if (q.type === 'cat' || q.type === 'norisk' || q.type === 'auction') {
+      if (q.type === 'cat') {
         body += st.answering
           ? `<div class="big-msg">${st.answering === id ? 'Отвечаете вы!' : 'Отвечает ' + e(S.nameOf(st, st.answering))}</div>`
           : '<p class="muted center">Ведущий выбирает, кто будет отвечать</p>';
         return head + body;
       }
       let cls = '', label = 'Жди…';
-      if (st.answering === id) { cls = 'mine'; label = 'Вы отвечаете!'; }
+      if (st.answering === id) { cls = 'mine'; label = q.type === 'gift' ? 'Просите<br>баллы!' : 'Вы отвечаете!'; }
       else if (st.answering) { cls = 'out'; label = 'Отвечает<br>' + e(S.nameOf(st, st.answering)); }
       else if (st.wrong.includes(id)) { cls = 'out'; label = 'Вы уже<br>ответили'; }
       else if (st.buzzOpen) { cls = 'open'; label = 'ЖМИ!'; }

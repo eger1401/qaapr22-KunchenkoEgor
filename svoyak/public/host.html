@@ -296,9 +296,19 @@ function ctrlHtml() {
         ${S.specialHtml(q)}
         <div class="q-text">${e(q.text)}</div>
         ${S.imageHtml(q)}${audioHtml(q)}
-        ${st.phase === 'reveal' ? `<div class="answer">Ответ: <b>${e(q.answer)}</b></div>` : answerHtml(q.answer)}`;
+        ${st.phase === 'reveal' ? `<div class="answer">${q.type === 'gift' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>` : (q.type === 'gift' ? '' : answerHtml(q.answer))}`;
       if (st.phase === 'reveal') return h + '<button class="btn gold wide" data-act="toBoard">К табло</button>';
       if (st.answering) {
+        if (q.type === 'gift') {
+          return h + `<div class="answering-name">${nm(st.answering)}</div>
+            <div class="status">Игрок просит баллы. Сколько дадите?</div>
+            <div class="assign">${[100, 200, 300, 500, 1000].map((n) => `<button class="btn good" data-gift="${n}">+${n}</button>`).join('')}</div>
+            <div class="row">
+              <input type="number" inputmode="numeric" id="giftInput" min="0" placeholder="своё число" aria-label="Сколько баллов" style="flex:1 1 120px;width:auto">
+              <button class="btn gold" data-gift-own="1">Дать</button>
+            </div>
+            <button class="btn ghost wide" data-gift="0">Ничего не давать</button>`;
+        }
         return h + `<div class="answering-name">${nm(st.answering)}</div>
           ${q.type === 'auction' ? `<div class="status">Ставка: <span class="price">${q.stake}</span></div>` : ''}
           <div class="row">
@@ -318,9 +328,8 @@ function ctrlHtml() {
           <details><summary class="muted">Ставку делает другой игрок</summary><div style="margin-top:10px">${assignList(false)}</div></details>
           <button class="btn ghost wide" data-act="reveal">Показать ответ, пропустить</button>`;
       }
-      if (q.type === 'cat' || q.type === 'norisk' || q.type === 'auction') {
-        const title = q.type === 'cat' ? 'Кому передать вопрос? Выбравший называет игрока' : q.type === 'auction' ? 'Кто делает ставку?' : 'Кто отвечает?';
-        return h + `<span class="label">${title}</span>${assignList(true)}
+      if (q.type === 'cat') {
+        return h + `<span class="label">Кому передать вопрос? Выбравший называет игрока</span>${assignList(true)}
           <button class="btn ghost wide" data-act="reveal">Показать ответ</button>`;
       }
       const wrong = st.wrong.length ? `<div class="muted" style="font-size:14px">Уже ошиблись: ${st.wrong.map(nm).join(', ')}</div>` : '';
@@ -388,6 +397,9 @@ function bindCtrl(el) {
   bindRestart(el);
   const ss = el.querySelector('[data-stake-set]');
   if (ss) ss.onclick = () => { const v = $('#stakeInput').value; if (v !== '') { $('#stakeInput').blur(); act('stake', { amount: Number(v) }); } };
+  el.querySelectorAll('[data-gift]').forEach((b) => b.onclick = () => act('gift', { amount: Number(b.dataset.gift) }));
+  const go = el.querySelector('[data-gift-own]');
+  if (go) go.onclick = () => { const v = $('#giftInput').value; if (v !== '') { $('#giftInput').blur(); act('gift', { amount: Number(v) }); } };
   const sa = el.querySelector('[data-stake-all]');
   if (sa) sa.onclick = () => act('stake', { amount: Number(sa.dataset.stakeAll) });
   el.querySelectorAll('[data-act]').forEach((b) => b.onclick = () => act(b.dataset.act));
