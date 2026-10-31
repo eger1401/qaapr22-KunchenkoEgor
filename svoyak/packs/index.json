@@ -1,4 +1,5 @@
 [
+  { "file": "legkiy.json", "title": "Лёгкий для всех" },
   { "file": "svoi.json", "title": "Для своих" },
   { "file": "classic.json", "title": "Свояк" }
 ]

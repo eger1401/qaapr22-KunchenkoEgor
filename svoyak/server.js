@@ -28,7 +28,10 @@ function defaultPackFile() {
   const files = listPacks().map((p) => p.file);
   const wanted = process.env.PACK && (process.env.PACK.endsWith('.json') ? process.env.PACK : process.env.PACK + '.json');
   if (wanted && files.includes(wanted)) return wanted;
-  if (files.includes('svoi.json')) return 'svoi.json';
+  try {
+    const first = JSON.parse(fs.readFileSync(path.join(PACKS_DIR, 'index.json'), 'utf8'))[0].file;
+    if (files.includes(first)) return first;
+  } catch { /* без index.json берём первый файл */ }
   if (!files.length) throw new Error('В папке packs нет ни одного пакета вопросов');
   return files[0];
 }
