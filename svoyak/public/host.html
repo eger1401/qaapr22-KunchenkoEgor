@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Свояк — ведущий</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&family=Russo+One&display=swap">
 <link rel="stylesheet" href="style.css">
 <style>
   .answering-name { font-family: var(--display); font-size: 28px; color: var(--buzz); text-align: center; }
@@ -30,6 +28,7 @@
 </head>
 <body>
 <div class="wrap">
+  <div id="boot" class="card muted" role="status">Загрузка пульта…</div>
   <section id="login" class="card" hidden>
     <h1 style="color:var(--gold)">Пульт ведущего</h1>
     <form id="loginForm" class="row">
@@ -162,6 +161,7 @@ async function login(k) {
   }
 }
 $('#loginForm').addEventListener('submit', (ev) => { ev.preventDefault(); login($('#pinInput').value.trim()); });
+$('#boot').hidden = true;
 login(key);
 applyCast();
 

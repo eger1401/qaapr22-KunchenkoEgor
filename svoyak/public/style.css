@@ -11,7 +11,7 @@
   --buzz: #ff4d5e;
   --good: #3fd28f;
   --bad: #ff6b78;
-  --display: "Russo One", "Arial Black", system-ui, sans-serif;
+  --display: "Russo One", "Arial Black", "Helvetica Neue", system-ui, sans-serif;
   --body: "Golos Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: dark;
 }

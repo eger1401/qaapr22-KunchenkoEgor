@@ -1,4 +1,13 @@
 // Общие функции для всех экранов.
+// Любая ошибка видна на экране, а не превращается в пустую страницу.
+window.addEventListener('error', (e) => {
+  if (e.target && e.target.tagName && e.target.tagName !== 'SCRIPT') return; // картинки не считаем
+  const box = document.createElement('div');
+  box.className = 'card';
+  box.style.cssText = 'border-color:#ff6b78;color:#ff6b78;margin:12px 0';
+  box.textContent = 'Ошибка: ' + (e.message || (e.target && e.target.src) || 'неизвестная') + '. Сделайте скриншот и пришлите.';
+  (document.querySelector('.wrap') || document.body).prepend(box);
+}, true);
 const S = (() => {
   let offset = 0; // разница часов сервера и устройства
   const query = new URLSearchParams(location.search);
