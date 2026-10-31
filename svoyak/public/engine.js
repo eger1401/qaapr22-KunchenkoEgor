@@ -51,7 +51,7 @@
   // auction — ставка выбравшего, plusminus — плюс на минус (жмут все, ошибка не отнимает очки)
   // gift — «попроси баллы у ведущего», approx — «отвечай приблизительно»
   const TYPES = ['normal', 'cat', 'norisk', 'auction', 'plusminus', 'gift', 'approx'];
-  const BONUS_POOL = ['gift', 'approx', 'norisk', 'auction', 'plusminus', 'cat'];
+  const BONUS_POOL = ['gift', 'approx', 'norisk', 'plusminus', 'cat'];
   const BONUS_LABELS = { cat: 'кот в мешке', norisk: 'без риска', auction: 'ставка', plusminus: 'плюс на минус', gift: 'попроси баллы', approx: 'отвечай приблизительно' };
 
   // бонусы выпадают на случайные вопросы: в каждом раунде каждый вид хотя бы раз
@@ -73,7 +73,6 @@
   // сколько получит за верный ответ и потеряет за неверный
   function points(q) {
     if (q.type === 'norisk') return { win: q.price * 2, lose: 0 };
-    if (q.type === 'plusminus') return { win: q.price, lose: 0 };
     if (q.type === 'auction') { const s = q.stake || q.price; return { win: s, lose: s }; }
     return { win: q.price, lose: q.price };
   }
@@ -205,9 +204,12 @@
         game.used[qKey(game.round, t, i)] = true;
         const type = game.bonus[qKey(game.round, t, i)] || 'normal';
         game.q = { t, i, theme: theme.name, price: q.price, text: q.text, answer: q.answer, type, image: q.image, audio: q.audio, melody: q.melody, bpm: q.bpm, big: q.big };
-        if (type === 'gift') {
-          // подарок вместо вопроса
-          Object.assign(game.q, { text: 'Бонус! Жми кнопку быстрее всех.', answer: '', image: undefined, audio: undefined, melody: undefined, big: undefined });
+        if (type === 'gift' || type === 'plusminus') {
+          // карточка-бонус вместо вопроса
+          const text = type === 'gift'
+            ? 'Бонус! Жми кнопку быстрее всех.'
+            : 'Бонус! Кто первым нажмёт кнопку — у того счёт поменяет знак.';
+          Object.assign(game.q, { text, answer: '', image: undefined, audio: undefined, melody: undefined, big: undefined });
         }
         game.media = null;
         game.phase = 'question';
@@ -281,7 +283,7 @@
         game.wrong.push(id);
         log(`${name(id)} ошибается${lose ? ': −' + lose : ', без минуса'}`);
         game.answering = null;
-        if (['normal', 'plusminus', 'approx'].includes(game.q.type) && eligibleToBuzz().length) {
+        if (['normal', 'approx'].includes(game.q.type) && eligibleToBuzz().length) {
           game.buzzOpen = true; // остальные могут попробовать
           game.buzzOpenedAt = Date.now();
         } else {
@@ -419,6 +421,16 @@
         if (game.q.type === 'auction' && !game.q.stake) {
           game.q.staker = id; // первый нажавший делает ставку, потом отвечает
           log(`Первым нажал ${name(id)} — делает ставку`);
+          return { first: true };
+        }
+        if (game.q.type === 'plusminus') {
+          // «Плюс на минус»: счёт нажавшего сразу меняет знак
+          const p = game.players[id];
+          const before = p.score;
+          p.score = -before;
+          game.q.answer = `${p.name}: ${before} → ${p.score}`;
+          game.phase = 'reveal';
+          log(`Плюс на минус: ${p.name} ${before} → ${p.score}`);
           return { first: true };
         }
         game.answering = id;

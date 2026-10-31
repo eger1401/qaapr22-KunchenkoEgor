@@ -181,7 +181,7 @@ function mainHtml(me, f, myFinal) {
       head += S.specialHtml(q);
       let body = `<div class="q-text">${e(q.text)}</div>${S.imageHtml(q)}`;
       if (st.phase === 'reveal') {
-        return head + body + `<div class="answer">${q.type === 'gift' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>`;
+        return head + body + `<div class="answer">${q.type === 'gift' || q.type === 'plusminus' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>`;
       }
       if (q.type === 'auction' && !q.stake) {
         if (q.staker === id) {

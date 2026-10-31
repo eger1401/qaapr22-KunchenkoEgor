@@ -298,7 +298,7 @@ function ctrlHtml() {
         ${S.specialHtml(q)}
         <div class="q-text">${e(q.text)}</div>
         ${S.imageHtml(q)}${audioHtml(q)}
-        ${st.phase === 'reveal' ? `<div class="answer">${q.type === 'gift' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>` : (q.type === 'gift' ? '' : answerHtml(q.answer))}`;
+        ${st.phase === 'reveal' ? `<div class="answer">${q.type === 'gift' || q.type === 'plusminus' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>` : (q.type === 'gift' || q.type === 'plusminus' ? '' : answerHtml(q.answer))}`;
       if (st.phase === 'reveal') return h + '<button class="btn gold wide" data-act="toBoard">К табло</button>';
       if (st.answering) {
         if (q.type === 'gift') {
