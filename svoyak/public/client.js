@@ -255,6 +255,7 @@ const S = (() => {
     norisk: { label: 'Без риска', rule: 'Кто первым нажмёт — отвечает. Верно — вдвое больше, ошибка без минуса.' },
     auction: { label: 'Ставка', rule: 'Кто первым нажмёт — ставит от цены вопроса до всего счёта и отвечает.' },
     plusminus: { label: 'Плюс на минус', rule: 'Кто первым нажмёт — у того счёт меняет знак: +300 станет −300, а −300 станет +300.' },
+    bonus: { label: 'Бонус', rule: 'Какой — узнаете, когда кто-то нажмёт кнопку.' },
     gift: { label: 'Попроси баллы', rule: 'Кто первым нажмёт — просит у ведущего баллы. Сколько дать, решает ведущий.' },
     approx: { label: 'Отвечай приблизительно', rule: 'Кто первым нажмёт — отвечает. Засчитывается и примерный ответ.' },
   };
@@ -263,6 +264,6 @@ const S = (() => {
     return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
   }
 
-  const VERSION = '16 · без ставки, новый «Плюс на минус»';
+  const VERSION = '17 · скрытые бонусы, рофл-темы';
   return { VERSION, playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

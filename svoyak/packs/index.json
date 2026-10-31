@@ -4,6 +4,11 @@
     "title": "Случайный микс"
   },
   {
+    "file": "rofl.json",
+    "title": "Рофл",
+    "mix": true
+  },
+  {
     "file": "tusovka.json",
     "title": "Тусовка 18+",
     "mix": true

@@ -505,6 +505,15 @@
           if (game.q.staker) v.q.stakeRange = stakeRange(game.q.staker);
         }
         if (isHost || game.phase === 'reveal') v.q.answer = game.q.answer;
+        // бонус скрыт от игроков, пока кто-нибудь не нажмёт кнопку (или ведущий не передаст вопрос)
+        const opened = !!game.answering || game.phase === 'reveal' || game.wrong.length > 0;
+        v.q.bonusOpened = opened;
+        if (!isHost && game.q.type !== 'normal' && !opened) {
+          v.q.type = 'bonus';
+          if (game.q.type === 'gift' || game.q.type === 'plusminus') v.q.text = 'Бонус! Жми кнопку быстрее всех.';
+          delete v.q.win;
+          delete v.q.lose;
+        }
       }
 
       if (game.phase.startsWith('final') && game.pack.final) {

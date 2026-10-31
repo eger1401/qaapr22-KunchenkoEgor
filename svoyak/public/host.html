@@ -228,6 +228,18 @@ function render() {
 }
 
 function nm(id) { return e(S.nameOf(st, id)); }
+
+// в режиме трансляции бонус не виден на ТВ, пока кто-то не нажал кнопку
+const bonusHidden = (q) => cast && q.type !== 'normal' && !q.bonusOpened;
+function bonusHtml(q) {
+  if (q.type === 'normal') return '';
+  if (!bonusHidden(q)) return S.specialHtml(q);
+  const s = S.SPECIAL[q.type] || {};
+  return `<button class="btn ghost wide peek" type="button" data-peek="${e(s.label + ': ' + s.rule)}">Бонус — держите, чтобы узнать какой</button>`;
+}
+function hostText(q) {
+  return bonusHidden(q) && (q.type === 'gift' || q.type === 'plusminus') ? 'Бонус! Жми кнопку быстрее всех.' : q.text;
+}
 const playUrl = () => (st.online ? st.online.play : st.urls[0] + '/play');
 
 function onlineInfoHtml() {
@@ -295,8 +307,8 @@ function ctrlHtml() {
     case 'reveal': {
       const q = st.q;
       let h = `<div class="q-head"><span class="label">${e(q.theme)}</span><span class="price">${q.price}</span></div>
-        ${S.specialHtml(q)}
-        <div class="q-text">${e(q.text)}</div>
+        ${bonusHtml(q)}
+        <div class="q-text">${e(hostText(q))}</div>
         ${S.imageHtml(q)}${audioHtml(q)}
         ${st.phase === 'reveal' ? `<div class="answer">${q.type === 'gift' || q.type === 'plusminus' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>` : (q.type === 'gift' || q.type === 'plusminus' ? '' : answerHtml(q.answer))}`;
       if (st.phase === 'reveal') return h + '<button class="btn gold wide" data-act="toBoard">К табло</button>';
@@ -334,14 +346,14 @@ function ctrlHtml() {
         return h + `<span class="label">Кому передать вопрос? Выбравший называет игрока</span>${assignList(true)}
           <button class="btn ghost wide" data-act="reveal">Показать ответ</button>`;
       }
+      const left = st.players.filter((p) => !st.wrong.includes(p.id));
       const wrong = st.wrong.length ? `<div class="muted" style="font-size:14px">Уже ошиблись: ${st.wrong.map(nm).join(', ')}</div>` : '';
       return h + wrong + (st.buzzOpen
-        ? `<div class="status open">Кнопка открыта — ждём нажатия</div>
-           <div class="row"><button class="btn ghost" data-act="closeBuzz">Закрыть кнопку</button><button class="btn" data-act="reveal">Никто не ответил</button></div>`
-        : `<div class="status">Прочитайте вопрос вслух и откройте кнопку</div>
-           <button class="btn gold wide" data-act="openBuzz" style="padding:20px">Открыть кнопку</button>
-           <button class="btn ghost wide" data-act="reveal">Показать ответ, никто не ответил</button>`)
-        + `<details><summary class="muted">Назначить отвечающего вручную</summary><div class="assign" style="margin-top:10px">${st.players.map((p) => `<button class="btn small" data-assign="${e(p.id)}">${e(p.name)}</button>`).join('')}</div></details>`;
+        ? `<div class="status open">Кнопка открыта — ждём нажатия</div>`
+        : `<button class="btn gold wide" data-act="openBuzz" style="padding:20px">Открыть кнопку</button>`)
+        + (left.length ? `<span class="label">Отвечают все. Ещё не отвечали — нажмите, кого спросить:</span>
+           <div class="assign">${left.map((p) => `<button class="btn small" data-assign="${e(p.id)}">${e(p.name)}</button>`).join('')}</div>` : '')
+        + `<button class="btn ghost wide" data-act="reveal">Никто не ответил — пропустить вопрос</button>`;
     }
     case 'final-bets': {
       const f = st.final;

@@ -207,7 +207,9 @@ function mainHtml(me, f, myFinal) {
       else if (st.answering) { cls = 'out'; label = 'Отвечает<br>' + e(S.nameOf(st, st.answering)); }
       else if (st.wrong.includes(id)) { cls = 'out'; label = 'Вы уже<br>ответили'; }
       else if (st.buzzOpen) { cls = 'open'; label = 'ЖМИ!'; }
-      return head + body + `<button class="buzz ${cls}" id="buzz" type="button">${label}</button>`;
+      const mustAnswer = !st.answering && !st.wrong.includes(id) && st.buzzOpen
+        ? '<p class="center" style="margin:0;font-weight:600">Отвечают все — жми и отвечай!</p>' : '';
+      return head + body + `<button class="buzz ${cls}" id="buzz" type="button">${label}</button>` + mustAnswer;
     }
     case 'final-bets':
       if (!myFinal) return `<div class="big-msg">Финал: ${e(f.theme)}</div><p class="muted center">В финал проходят игроки с положительным счётом. Смотрим!</p>`;
