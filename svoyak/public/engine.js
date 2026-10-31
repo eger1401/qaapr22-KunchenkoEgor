@@ -82,11 +82,14 @@
 
   // «Случайный микс»: каждую игру — новые 15 тем из всех лёгких пакетов, цены по раундам
   const MIX_FILE = '@random';
+  const MIX18_FILE = '@random18';
+  const ADULT_QUOTA = 5;
   // history — уже сыгранные темы (их id); пока есть несыгранные, повторов нет
-  function buildMix(packs, history = []) {
+  // opts.adult — сколько тем брать из взрослых пакетов ("adult": true) в первую очередь
+  function buildMix(packs, history = [], opts = {}) {
     const all = [];
     packs.forEach((p) => (p.rounds || []).forEach((r) => r.themes.forEach((t) => {
-      if (t.questions.length >= 5) all.push({ id: t.name, t }); // одинаковые названия считаем одной темой
+      if (t.questions.length >= 5) all.push({ id: t.name, t, adult: !!p.adult }); // одинаковые названия считаем одной темой
     })));
     const used = new Set(history);
     const names = new Set(); // в одной игре — без одинаковых названий тем
@@ -97,12 +100,18 @@
         if (!names.has(x.t.name)) { names.add(x.t.name); chosen.push(x); }
       }
     };
+    if (opts.adult) {
+      const adult = all.filter((x) => x.adult);
+      const quota = shuffled(adult.filter((x) => !used.has(x.id))).concat(shuffled(adult.filter((x) => used.has(x.id)))).slice(0, opts.adult);
+      take(quota);
+    }
     take(shuffled(all.filter((x) => !used.has(x.id))));
     const historyReset = chosen.length < 15; // всё сыграно — начинаем новый круг
     if (historyReset) take(shuffled(all.filter((x) => used.has(x.id))));
+    chosen.splice(0, chosen.length, ...shuffled(chosen)); // взрослые темы — по разным раундам
     const roundNames = ['Первый раунд', 'Второй раунд', 'Третий раунд'];
     const rounds = Math.max(1, Math.min(3, Math.floor(chosen.length / 5)));
-    const mix = { title: 'Случайный микс', mix: true, rounds: [], ids: [], historyReset };
+    const mix = { title: opts.adult ? 'Случайный микс 18+' : 'Случайный микс', mix: true, adult: !!opts.adult, rounds: [], ids: [], historyReset };
     for (let r = 0; r < rounds; r++) {
       const part = chosen.slice(r * 5, r * 5 + 5);
       mix.ids.push(...part.map((x) => x.id));
@@ -212,7 +221,7 @@
         const mixPacks = hooks.mixPacks ? hooks.mixPacks() : [];
         if (!game.fixed && mixPacks.length) {
           const history = game.themeHistory || [];
-          const pack = buildMix(mixPacks, history);
+          const pack = buildMix(mixPacks, history, game.pack.adult ? { adult: ADULT_QUOTA } : {});
           game.pack = pack;
           game.themeHistory = pack.historyReset ? pack.ids.slice() : history.concat(pack.ids);
           game.bonus = makeBonuses(pack);
@@ -632,7 +641,7 @@
     };
   }
 
-  const api = { createEngine, validatePack, freshGame, buildMix, MIX_FILE };
+  const api = { createEngine, validatePack, freshGame, buildMix, MIX_FILE, MIX18_FILE, ADULT_QUOTA };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SvoyakEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);

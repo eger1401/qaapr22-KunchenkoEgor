@@ -29,13 +29,15 @@ function mixPacks() {
 }
 
 function packByFile(file) {
-  if (file === MIX_FILE) return buildMix(mixPacks(), engineRef ? engineRef.state.themeHistory || [] : []);
+  const history = engineRef ? engineRef.state.themeHistory || [] : [];
+  if (file === MIX_FILE) return buildMix(mixPacks(), history);
+  if (file === MIX18_FILE) return buildMix(mixPacks(), history, { adult: ADULT_QUOTA });
   return JSON.parse(fs.readFileSync(path.join(PACKS_DIR, path.basename(file)), 'utf8'));
 }
 
 function listPacks() {
   const index = readIndex();
-  if (index) return index.filter((p) => p.file === MIX_FILE || fs.existsSync(path.join(PACKS_DIR, path.basename(p.file)))).map(({ file, title, hidden }) => ({ file, title, hidden }));
+  if (index) return index.filter((p) => p.file === MIX_FILE || p.file === MIX18_FILE || fs.existsSync(path.join(PACKS_DIR, path.basename(p.file)))).map(({ file, title, hidden }) => ({ file, title, hidden }));
   let files = [];
   try { files = fs.readdirSync(PACKS_DIR).filter((f) => f.endsWith('.json') && f !== 'index.json').sort(); } catch { /* нет папки */ }
   return files.map((file) => {
@@ -55,7 +57,7 @@ function defaultPackFile() {
 
 // ---------- состояние ----------
 
-const { createEngine, validatePack, buildMix, MIX_FILE } = require('./public/engine.js');
+const { createEngine, validatePack, buildMix, MIX_FILE, MIX18_FILE, ADULT_QUOTA } = require('./public/engine.js');
 
 function loadPack(file) {
   return validatePack(JSON.parse(fs.readFileSync(file, 'utf8')));

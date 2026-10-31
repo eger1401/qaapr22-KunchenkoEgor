@@ -127,16 +127,20 @@ const SvoyakOnline = (() => {
     // запасной список, если packs/index.json не загрузится
     let packs = [
       { file: '@random', title: 'Случайный микс' },
-      ...['rofl', 'rofl2', 'tusovka', 'miks', 'legkiy', 'media', 'svoi', 'classic'].map((f) => ({ file: f + '.json', title: f, mix: true })),
+      { file: '@random18', title: 'Случайный микс 18+' },
+      ...['ogon18', 'rofl', 'rofl2', 'tusovka', 'miks', 'legkiy', 'media', 'svoi', 'classic'].map((f) => ({ file: f + '.json', title: f, mix: true })),
       { file: 'finals.json', title: 'finals', mix: true, hidden: true },
     ];
     let engine = null;
     let links = [];
 
     let mixPacks = [];
-    const packByFile = async (file) => (file === SvoyakEngine.MIX_FILE
-      ? SvoyakEngine.buildMix(mixPacks, engine ? engine.state.themeHistory || [] : [])
-      : fetchJson('../packs/' + encodeURIComponent(file)));
+    const packByFile = async (file) => {
+      const history = engine ? engine.state.themeHistory || [] : [];
+      if (file === SvoyakEngine.MIX_FILE) return SvoyakEngine.buildMix(mixPacks, history);
+      if (file === SvoyakEngine.MIX18_FILE) return SvoyakEngine.buildMix(mixPacks, history, { adult: SvoyakEngine.ADULT_QUOTA });
+      return fetchJson('../packs/' + encodeURIComponent(file));
+    };
 
     const hooks = {
       mixPacks: () => mixPacks,

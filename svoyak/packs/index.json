@@ -4,6 +4,15 @@
     "title": "Случайный микс"
   },
   {
+    "file": "@random18",
+    "title": "Случайный микс 18+"
+  },
+  {
+    "file": "ogon18.json",
+    "title": "18+ Огонь",
+    "mix": true
+  },
+  {
     "file": "rofl.json",
     "title": "Рофл",
     "mix": true
@@ -30,7 +39,7 @@
   },
   {
     "file": "media.json",
-    "title": "Картинки и звуки",
+    "title": "Картинки",
     "mix": true
   },
   {
