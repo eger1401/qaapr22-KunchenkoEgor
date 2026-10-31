@@ -77,6 +77,33 @@
   }
 
   const randInt = (n) => Math.floor(Math.random() * n);
+  const shuffled = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = randInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // «Случайный микс»: каждую игру — новые 15 тем из всех лёгких пакетов, цены по раундам
+  const MIX_FILE = '@random';
+  function buildMix(packs) {
+    const seen = new Set();
+    const themes = [];
+    packs.forEach((p) => p.rounds.forEach((r) => r.themes.forEach((t) => {
+      if (t.questions.length >= 5 && !seen.has(t.name)) { seen.add(t.name); themes.push(t); }
+    })));
+    const pick = shuffled(themes);
+    const names = ['Первый раунд', 'Второй раунд', 'Третий раунд'];
+    const rounds = Math.max(1, Math.min(3, Math.floor(pick.length / 5)));
+    const mix = { title: 'Случайный микс', mix: true, rounds: [] };
+    for (let r = 0; r < rounds; r++) {
+      mix.rounds.push({
+        name: names[r],
+        themes: pick.slice(r * 5, r * 5 + 5).map((t) => ({
+          name: t.name,
+          questions: t.questions.slice(0, 5).map((q, j) => ({ ...q, type: 'normal', price: (r + 1) * 100 * (j + 1) })),
+        })),
+      });
+    }
+    const finals = packs.map((p) => p.final).filter(Boolean);
+    if (finals.length) mix.final = { ...finals[randInt(finals.length)] };
+    return validatePack(JSON.parse(JSON.stringify(mix)));
+  }
   const FALSE_START_MS = 1000;
 
   // hooks: isOnline(id), screens(), urls(), packs(), loadPackFile(file)
@@ -316,9 +343,11 @@
       },
       newGame() {
         const keepPlayers = game.order.map((id) => ({ id, name: game.players[id].name }));
-        game = freshGame(game.pack, game.pin);
+        // у «Случайного микса» при каждой новой игре — новые темы
+        const pack = game.pack.mix && hooks.mixPacks ? buildMix(hooks.mixPacks()) : game.pack;
+        game = freshGame(pack, game.pin);
         keepPlayers.forEach(({ id, name: n }) => { game.players[id] = { name: n, score: 0 }; game.order.push(id); });
-        log('Новая игра');
+        log(pack.mix ? 'Новая игра, новые темы' : 'Новая игра');
       },
       usePack({ file }) {
         hostActions.loadPack({ pack: hooks.loadPackFile(file) });
@@ -496,7 +525,7 @@
     };
   }
 
-  const api = { createEngine, validatePack, freshGame };
+  const api = { createEngine, validatePack, freshGame, buildMix, MIX_FILE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SvoyakEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);

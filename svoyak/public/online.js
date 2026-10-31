@@ -128,7 +128,13 @@ const SvoyakOnline = (() => {
     let engine = null;
     let links = [];
 
+    let mixPacks = [];
+    const packByFile = async (file) => (file === SvoyakEngine.MIX_FILE
+      ? SvoyakEngine.buildMix(mixPacks)
+      : fetchJson('../packs/' + encodeURIComponent(file)));
+
     const hooks = {
+      mixPacks: () => mixPacks,
       isOnline: (pid) => [...conns.values()].some((c) => c.role === 'player' && c.id === pid),
       screens: () => new Set([...conns.values()].filter((c) => c.role === 'screen').map((c) => c.cid)).size,
       urls: () => [],
@@ -167,7 +173,7 @@ const SvoyakOnline = (() => {
     async function run(body) {
       if (body.role === 'host' && body.type === 'usePack') {
         if (!packs.some((p) => p.file === body.file)) throw new Error('Нет такого пакета');
-        body = { role: 'host', key: engine.pin, type: 'loadPack', pack: await fetchJson('../packs/' + encodeURIComponent(body.file)) };
+        body = { role: 'host', key: engine.pin, type: 'loadPack', pack: await packByFile(body.file) };
       }
       const r = engine.handle(body);
       broadcast();
@@ -236,8 +242,9 @@ const SvoyakOnline = (() => {
 
     (async () => {
       try { packs = await fetchJson('../packs/index.json'); } catch { /* остаётся список по умолчанию */ }
+      mixPacks = (await Promise.all(packs.filter((p) => p.mix).map((p) => fetchJson('../packs/' + encodeURIComponent(p.file)).catch(() => null)))).filter(Boolean);
       let pack = null;
-      if (!saved) pack = await fetchJson('../packs/' + encodeURIComponent(packs[0].file));
+      if (!saved) pack = await packByFile(packs[0].file);
       engine = SvoyakEngine.createEngine({ game: saved, pack, pin: saved ? saved.pin : String(1000 + Math.floor(Math.random() * 9000)), hooks });
       openLinks();
       broadcast();

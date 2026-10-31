@@ -15,7 +15,25 @@ const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const PACKS_DIR = path.join(ROOT, 'packs');
 const MEDIA_DIR = path.join(ROOT, 'media');
 
+function readIndex() {
+  try { return JSON.parse(fs.readFileSync(path.join(PACKS_DIR, 'index.json'), 'utf8')); } catch { return null; }
+}
+
+// пакеты, из которых собирается «Случайный микс» (в index.json помечены "mix": true)
+function mixPacks() {
+  return (readIndex() || []).filter((p) => p.mix).map((p) => {
+    try { return JSON.parse(fs.readFileSync(path.join(PACKS_DIR, path.basename(p.file)), 'utf8')); } catch { return null; }
+  }).filter(Boolean);
+}
+
+function packByFile(file) {
+  if (file === MIX_FILE) return buildMix(mixPacks());
+  return JSON.parse(fs.readFileSync(path.join(PACKS_DIR, path.basename(file)), 'utf8'));
+}
+
 function listPacks() {
+  const index = readIndex();
+  if (index) return index.filter((p) => p.file === MIX_FILE || fs.existsSync(path.join(PACKS_DIR, path.basename(p.file)))).map(({ file, title }) => ({ file, title }));
   let files = [];
   try { files = fs.readdirSync(PACKS_DIR).filter((f) => f.endsWith('.json') && f !== 'index.json').sort(); } catch { /* нет папки */ }
   return files.map((file) => {
@@ -28,17 +46,14 @@ function defaultPackFile() {
   const files = listPacks().map((p) => p.file);
   const wanted = process.env.PACK && (process.env.PACK.endsWith('.json') ? process.env.PACK : process.env.PACK + '.json');
   if (wanted && files.includes(wanted)) return wanted;
-  try {
-    const first = JSON.parse(fs.readFileSync(path.join(PACKS_DIR, 'index.json'), 'utf8'))[0].file;
-    if (files.includes(first)) return first;
-  } catch { /* без index.json берём первый файл */ }
+  if (wanted === 'random.json') return MIX_FILE;
   if (!files.length) throw new Error('В папке packs нет ни одного пакета вопросов');
   return files[0];
 }
 
 // ---------- состояние ----------
 
-const { createEngine, validatePack } = require('./public/engine.js');
+const { createEngine, validatePack, buildMix, MIX_FILE } = require('./public/engine.js');
 
 function loadPack(file) {
   return validatePack(JSON.parse(fs.readFileSync(file, 'utf8')));
@@ -53,14 +68,15 @@ try {
 
 const engine = createEngine({
   game: saved,
-  pack: saved ? null : loadPack(path.join(PACKS_DIR, defaultPackFile())),
+  pack: saved ? null : validatePack(packByFile(defaultPackFile())),
   pin: process.env.HOST_PIN || String(crypto.randomInt(1000, 10000)),
   hooks: {
     isOnline: (pid) => isOnline(pid),
     screens: () => [...clients].filter((c) => c.role === 'screen').length,
     urls: () => lanUrls(),
     packs: () => listPacks(),
-    loadPackFile: (file) => JSON.parse(fs.readFileSync(path.join(PACKS_DIR, path.basename(file)), 'utf8')),
+    loadPackFile: (file) => packByFile(file),
+    mixPacks: () => mixPacks(),
   },
 });
 if (process.env.HOST_PIN) engine.pin = process.env.HOST_PIN;
