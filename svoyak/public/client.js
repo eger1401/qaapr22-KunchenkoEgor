@@ -196,8 +196,47 @@ const S = (() => {
     return (ONLINE ? '../media/' : '/media/') + src.split('/').map(encodeURIComponent).join('/');
   }
   function imageHtml(q) {
-    return q && q.image ? `<img class="q-img" src="${esc(mediaUrl(q.image))}" alt="">` : '';
+    if (!q) return '';
+    return (q.big ? `<div class="q-big">${esc(q.big)}</div>` : '')
+      + (q.image ? `<img class="q-img" src="${esc(mediaUrl(q.image))}" alt="">` : '');
   }
+
+  // мелодия нотами: "E5/1 B4/.5 -/.5 …" (нота/длительность в долях, "-" — пауза)
+  let melodyStop = null;
+  function playMelody(str, bpm = 120) {
+    stopMelody();
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch { return; }
+    const beat = 60 / (Number(bpm) || 120);
+    const SEMI = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };
+    const master = ctx.createGain();
+    master.gain.value = 0.18;
+    master.connect(ctx.destination);
+    let t = ctx.currentTime + 0.08;
+    for (const tok of String(str).trim().split(/\s+/)) {
+      const [n, d] = tok.split('/');
+      const dur = (Number(d) || 1) * beat;
+      const m = /^([A-G])(#|b)?(\d)$/.exec(n);
+      if (m) {
+        const semis = SEMI[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + (Number(m[3]) - 4) * 12;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'triangle';
+        o.frequency.value = 440 * Math.pow(2, semis / 12);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(1, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.08, dur * 0.92));
+        o.connect(g).connect(master);
+        o.start(t);
+        o.stop(t + dur);
+      }
+      t += dur;
+    }
+    melodyStop = () => { try { master.disconnect(); } catch { /* уже */ } };
+  }
+  function stopMelody() { if (melodyStop) { melodyStop(); melodyStop = null; } }
 
   // QR-код ссылки (svg), если библиотека загружена
   async function qrSvg(text, cell = 5) {
@@ -224,5 +263,5 @@ const S = (() => {
     return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
   }
 
-  return { SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
+  return { playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

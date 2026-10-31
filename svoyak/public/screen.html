@@ -58,7 +58,8 @@ function syncAudio(st) {
   if (nonce === lastMediaNonce) return;
   const first = lastMediaNonce === undefined;
   lastMediaNonce = nonce;
-  if (!st.q || !st.q.audio || !m || !m.playing || first) { audio.pause(); return; }
+  if (!st.q || !(st.q.audio || st.q.melody) || !m || !m.playing || first) { audio.pause(); S.stopMelody(); return; }
+  if (st.q.melody) { S.playMelody(st.q.melody, st.q.bpm); return; }
   audio.src = S.mediaUrl(st.q.audio);
   audio.currentTime = 0;
   audio.play().catch(() => { $('#sound').hidden = false; });
@@ -77,7 +78,7 @@ if (S.ONLINE && !S.room()) {
   });
 } else S.connect({ role: 'screen' }, (st) => {
   syncAudio(st);
-  if (st.phase !== 'question' && st.phase !== 'reveal' && !audio.paused) audio.pause();
+  if (st.phase !== 'question' && st.phase !== 'reveal') { if (!audio.paused) audio.pause(); S.stopMelody(); }
   $('#round').textContent = st.phase === 'lobby' ? '' : st.phase.startsWith('final') ? 'Финал' : st.board.name;
   $('#bar').innerHTML = st.players.map((p) => `<div class="pl${p.id === st.answering ? ' answering' : ''}${p.id === st.chooser && st.phase === 'board' ? ' chooser' : ''}">
     <b>${e(p.name)}</b><span class="${p.score < 0 ? 'neg' : ''}">${p.score}</span></div>`).join('');

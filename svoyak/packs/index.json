@@ -1,7 +1,29 @@
 [
-  { "file": "@random", "title": "Случайный микс" },
-  { "file": "miks.json", "title": "Микс для всех", "mix": true },
-  { "file": "legkiy.json", "title": "Лёгкий для всех", "mix": true },
-  { "file": "svoi.json", "title": "Для своих" },
-  { "file": "classic.json", "title": "Свояк" }
+  {
+    "file": "@random",
+    "title": "Случайный микс"
+  },
+  {
+    "file": "miks.json",
+    "title": "Микс для всех",
+    "mix": true
+  },
+  {
+    "file": "legkiy.json",
+    "title": "Лёгкий для всех",
+    "mix": true
+  },
+  {
+    "file": "media.json",
+    "title": "Картинки и звуки",
+    "mix": true
+  },
+  {
+    "file": "svoi.json",
+    "title": "Для своих"
+  },
+  {
+    "file": "classic.json",
+    "title": "Свояк"
+  }
 ]

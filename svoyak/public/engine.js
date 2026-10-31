@@ -37,6 +37,8 @@
           q.type = TYPE_ALIASES[q.type] || (TYPES.includes(q.type) ? q.type : 'normal');
           if (q.image) q.image = String(q.image);
           if (q.audio) q.audio = String(q.audio);
+          if (q.melody) q.melody = String(q.melody);
+          if (q.big) q.big = String(q.big);
         });
       });
     });
@@ -178,10 +180,10 @@
         if (game.used[qKey(game.round, t, i)]) throw new Error('Вопрос уже сыгран');
         game.used[qKey(game.round, t, i)] = true;
         const type = game.bonus[qKey(game.round, t, i)] || 'normal';
-        game.q = { t, i, theme: theme.name, price: q.price, text: q.text, answer: q.answer, type, image: q.image, audio: q.audio };
+        game.q = { t, i, theme: theme.name, price: q.price, text: q.text, answer: q.answer, type, image: q.image, audio: q.audio, melody: q.melody, bpm: q.bpm, big: q.big };
         if (type === 'gift') {
           // подарок вместо вопроса
-          Object.assign(game.q, { text: 'Бонус! Жми кнопку быстрее всех.', answer: '', image: undefined, audio: undefined });
+          Object.assign(game.q, { text: 'Бонус! Жми кнопку быстрее всех.', answer: '', image: undefined, audio: undefined, melody: undefined, big: undefined });
         }
         game.media = null;
         game.phase = 'question';
@@ -199,7 +201,7 @@
         game.buzzOpenedAt = Date.now();
       },
       playMedia() {
-        if (!game.q || !game.q.audio) return;
+        if (!game.q || !(game.q.audio || game.q.melody)) return;
         game.media = { nonce: Date.now(), playing: true };
       },
       stopMedia() {
@@ -453,7 +455,7 @@
       };
 
       if (game.q) {
-        v.q = { t: game.q.t, i: game.q.i, theme: game.q.theme, price: game.q.price, type: game.q.type, text: game.q.text, image: game.q.image, audio: game.q.audio };
+        v.q = { t: game.q.t, i: game.q.i, theme: game.q.theme, price: game.q.price, type: game.q.type, text: game.q.text, image: game.q.image, audio: game.q.audio, melody: game.q.melody, bpm: game.q.bpm, big: game.q.big };
         v.media = game.media || null;
         Object.assign(v.q, points(game.q));
         if (game.q.type === 'auction') {

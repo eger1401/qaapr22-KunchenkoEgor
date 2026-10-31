@@ -135,6 +135,7 @@ const MIME = {
 const ROUTES = { '/': 'index.html', '/host': 'host.html', '/play': 'play.html', '/screen': 'screen.html', '/cheat': 'cheat.html' };
 const MEDIA_TYPES = {
   '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.aac': 'audio/aac',
+  '.svg': 'image/svg+xml',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
 };
 

@@ -183,7 +183,7 @@ function section(id, k, html, bind) {
 function render() {
   if (!st) return;
   syncAudio();
-  if (st.phase !== 'question' && st.phase !== 'reveal' && !audio.paused) audio.pause();
+  if (st.phase !== 'question' && st.phase !== 'reveal') { if (!audio.paused) audio.pause(); S.stopMelody(); }
   if (st.answering && st.answering !== prevAnswering) { S.beep(660, 120); setTimeout(() => S.beep(990, 220), 130); S.vibrate([100, 50, 100]); }
   prevAnswering = st.answering;
 
@@ -253,7 +253,7 @@ function answerHtml(answer) {
 }
 
 function audioHtml(q) {
-  if (!q.audio) return '';
+  if (!q.audio && !q.melody) return '';
   const where = st.screens > 0 ? 'играет на большом экране' : 'играет на этом телефоне';
   return `<div class="row"><button class="btn gold" data-act="playMedia">▶ Музыка</button><button class="btn ghost" data-act="stopMedia">■ Стоп</button></div>
     <span class="muted" style="font-size:13px">Звук ${where}</span>`;
@@ -266,7 +266,8 @@ function syncAudio() {
   if (nonce === lastMediaNonce) return;
   const first = lastMediaNonce === undefined;
   lastMediaNonce = nonce;
-  if (!st.q || !st.q.audio || !m || !m.playing || st.screens > 0 || first) { audio.pause(); return; }
+  if (!st.q || !(st.q.audio || st.q.melody) || !m || !m.playing || st.screens > 0 || first) { audio.pause(); S.stopMelody(); return; }
+  if (st.q.melody) { S.playMelody(st.q.melody, st.q.bpm); return; }
   audio.src = S.mediaUrl(st.q.audio);
   audio.currentTime = 0;
   audio.play().catch(() => S.toast('Не удалось включить звук'));
