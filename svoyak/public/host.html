@@ -221,7 +221,7 @@ function render() {
     `<button class="btn${p.title === st.title ? ' gold' : ''}" data-pack="${e(p.file)}">${e(p.title)}</button>`).join(''), (el) => {
     el.querySelectorAll('[data-pack]').forEach((b) => b.onclick = () => {
       if (b.dataset.sure) act('usePack', { file: b.dataset.pack }).then((r) => r && S.toast('Пакет загружен'));
-      else { b.dataset.sure = '1'; b.textContent = 'Нажмите ещё раз: счёт обнулится'; }
+      else { b.dataset.sure = '1'; b.textContent = 'Нажмите ещё раз: счёт обнулится, темы сменятся'; }
     });
   });
   section('log', JSON.stringify(st.log), st.log.map((l) => `<div>${new Date(l.at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })} · ${e(l.text)}</div>`).join('') || 'Пока пусто');
@@ -374,7 +374,7 @@ function ctrlHtml() {
       const sorted = [...st.players].sort((a, b) => b.score - a.score);
       return `<h2>Итоги</h2>${sorted[0] ? `<div class="answering-name" style="color:var(--gold)">${e(sorted[0].name)}</div>` : ''}
         ${S.scoresHtml(st)}
-        <button class="btn gold wide" data-restart="1">Начать заново</button>`;
+        <button class="btn gold wide" data-restart="1">Начать заново (новые темы)</button>`;
     }
   }
   return '';
@@ -389,7 +389,7 @@ function bindRestart(el) {
     }
     b.dataset.sure = '1';
     const label = b.textContent;
-    b.textContent = 'Нажмите ещё раз: счёт обнулится';
+    b.textContent = 'Нажмите ещё раз: счёт обнулится, темы сменятся';
     setTimeout(() => { b.dataset.sure = ''; b.textContent = label; }, 4000);
   });
 }
@@ -461,7 +461,7 @@ function roundsHtml() {
   return st.rounds.map((r, i) => `<button class="btn small${i === st.board.index && !st.phase.startsWith('final') && st.phase !== 'end' && st.phase !== 'lobby' ? ' gold' : ''}" data-round="${i}">${e(r)}</button>`).join('')
     + (st.hasFinal ? `<button class="btn small${st.phase.startsWith('final') ? ' gold' : ''}" data-final="1">Финал</button>` : '')
     + '<button class="btn small ghost" data-end="1">Итоги</button>'
-    + '<button class="btn bad wide" data-restart="1" style="flex-basis:100%">Начать заново</button>';
+    + '<button class="btn bad wide" data-restart="1" style="flex-basis:100%">Начать заново (новые темы)</button>';
 }
 
 $('#newGameBtn').addEventListener('click', (ev) => {

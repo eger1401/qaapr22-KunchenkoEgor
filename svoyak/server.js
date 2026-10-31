@@ -15,6 +15,8 @@ const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const PACKS_DIR = path.join(ROOT, 'packs');
 const MEDIA_DIR = path.join(ROOT, 'media');
 
+let engineRef = null; // движок игры, когда уже создан
+
 function readIndex() {
   try { return JSON.parse(fs.readFileSync(path.join(PACKS_DIR, 'index.json'), 'utf8')); } catch { return null; }
 }
@@ -27,7 +29,7 @@ function mixPacks() {
 }
 
 function packByFile(file) {
-  if (file === MIX_FILE) return buildMix(mixPacks());
+  if (file === MIX_FILE) return buildMix(mixPacks(), engineRef ? (engineRef.state.themeHistory || []).concat(engineRef.state.pack.ids || []) : []);
   return JSON.parse(fs.readFileSync(path.join(PACKS_DIR, path.basename(file)), 'utf8'));
 }
 
@@ -79,6 +81,7 @@ const engine = createEngine({
     mixPacks: () => mixPacks(),
   },
 });
+engineRef = engine;
 if (process.env.HOST_PIN) engine.pin = process.env.HOST_PIN;
 
 let saveTimer = null;

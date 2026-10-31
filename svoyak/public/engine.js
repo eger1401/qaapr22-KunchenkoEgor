@@ -83,20 +83,33 @@
 
   // «Случайный микс»: каждую игру — новые 15 тем из всех лёгких пакетов, цены по раундам
   const MIX_FILE = '@random';
-  function buildMix(packs) {
-    const seen = new Set();
-    const themes = [];
+  // history — уже сыгранные темы (их id); пока есть несыгранные, повторов нет
+  function buildMix(packs, history = []) {
+    const all = [];
     packs.forEach((p) => p.rounds.forEach((r) => r.themes.forEach((t) => {
-      if (t.questions.length >= 5 && !seen.has(t.name)) { seen.add(t.name); themes.push(t); }
+      if (t.questions.length >= 5) all.push({ id: t.name, t }); // одинаковые названия считаем одной темой
     })));
-    const pick = shuffled(themes);
-    const names = ['Первый раунд', 'Второй раунд', 'Третий раунд'];
-    const rounds = Math.max(1, Math.min(3, Math.floor(pick.length / 5)));
-    const mix = { title: 'Случайный микс', mix: true, rounds: [] };
+    const used = new Set(history);
+    const names = new Set(); // в одной игре — без одинаковых названий тем
+    const chosen = [];
+    const take = (list) => {
+      for (const x of list) {
+        if (chosen.length >= 15) break;
+        if (!names.has(x.t.name)) { names.add(x.t.name); chosen.push(x); }
+      }
+    };
+    take(shuffled(all.filter((x) => !used.has(x.id))));
+    const historyReset = chosen.length < 15; // всё сыграно — начинаем новый круг
+    if (historyReset) take(shuffled(all.filter((x) => used.has(x.id))));
+    const roundNames = ['Первый раунд', 'Второй раунд', 'Третий раунд'];
+    const rounds = Math.max(1, Math.min(3, Math.floor(chosen.length / 5)));
+    const mix = { title: 'Случайный микс', mix: true, rounds: [], ids: [], historyReset };
     for (let r = 0; r < rounds; r++) {
+      const part = chosen.slice(r * 5, r * 5 + 5);
+      mix.ids.push(...part.map((x) => x.id));
       mix.rounds.push({
-        name: names[r],
-        themes: pick.slice(r * 5, r * 5 + 5).map((t) => ({
+        name: roundNames[r],
+        themes: part.map(({ t }) => ({
           name: t.name,
           questions: t.questions.slice(0, 5).map((q, j) => ({ ...q, type: 'normal', price: (r + 1) * 100 * (j + 1) })),
         })),
@@ -345,9 +358,14 @@
       },
       newGame() {
         const keepPlayers = game.order.map((id) => ({ id, name: game.players[id].name }));
-        // у «Случайного микса» при каждой новой игре — новые темы
-        const pack = game.pack.mix && hooks.mixPacks ? buildMix(hooks.mixPacks()) : game.pack;
+        // «Начать заново» всегда собирает новые случайные темы, которые ещё не играли
+        const prevIds = game.pack.ids || [];
+        let history = (game.themeHistory || []).concat(prevIds);
+        const mixPacks = hooks.mixPacks ? hooks.mixPacks() : [];
+        const pack = mixPacks.length ? buildMix(mixPacks, history) : game.pack;
+        if (pack.historyReset) history = prevIds.slice();
         game = freshGame(pack, game.pin);
+        game.themeHistory = history;
         keepPlayers.forEach(({ id, name: n }) => { game.players[id] = { name: n, score: 0 }; game.order.push(id); });
         log(pack.mix ? 'Новая игра, новые темы' : 'Новая игра');
       },
@@ -357,7 +375,9 @@
       loadPack({ pack }) {
         const p = validatePack(pack);
         const keepPlayers = game.order.map((id) => ({ id, name: game.players[id].name }));
+        const history = (game.themeHistory || []).concat(game.pack.ids || []);
         game = freshGame(p, game.pin);
+        game.themeHistory = history;
         keepPlayers.forEach(({ id, name: n }) => { game.players[id] = { name: n, score: 0 }; game.order.push(id); });
         log(`Загружен пакет «${p.title}»`);
       },

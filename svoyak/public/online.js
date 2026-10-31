@@ -130,7 +130,7 @@ const SvoyakOnline = (() => {
 
     let mixPacks = [];
     const packByFile = async (file) => (file === SvoyakEngine.MIX_FILE
-      ? SvoyakEngine.buildMix(mixPacks)
+      ? SvoyakEngine.buildMix(mixPacks, engine ? (engine.state.themeHistory || []).concat(engine.state.pack.ids || []) : [])
       : fetchJson('../packs/' + encodeURIComponent(file)));
 
     const hooks = {

@@ -4,6 +4,11 @@
     "title": "Случайный микс"
   },
   {
+    "file": "tusovka.json",
+    "title": "Тусовка 18+",
+    "mix": true
+  },
+  {
     "file": "miks.json",
     "title": "Микс для всех",
     "mix": true
@@ -20,10 +25,12 @@
   },
   {
     "file": "svoi.json",
-    "title": "Для своих"
+    "title": "Для своих",
+    "mix": true
   },
   {
     "file": "classic.json",
-    "title": "Свояк"
+    "title": "Свояк",
+    "mix": true
   }
 ]
