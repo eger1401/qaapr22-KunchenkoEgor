@@ -84,7 +84,7 @@ if (S.ONLINE && !S.room()) {
     <b>${e(p.name)}</b><span class="${p.score < 0 ? 'neg' : ''}">${p.score}</span></div>`).join('');
   if (st.answering && st.answering !== prevAnswering) S.beep(990, 250);
   prevAnswering = st.answering;
-  const key = JSON.stringify([st.phase, st.board, st.q, st.buzzOpen, st.answering, st.chooser, st.final, st.phase === 'lobby' || st.phase === 'end' ? st.players : 0]);
+  const key = JSON.stringify([st.finalSelect, st.phase, st.board, st.q, st.buzzOpen, st.answering, st.chooser, st.final, st.phase === 'lobby' || st.phase === 'end' ? st.players : 0]);
   if (key === lastKey) return;
   lastKey = key;
   $('#stage').innerHTML = stage(st);
@@ -122,6 +122,12 @@ function stage(st) {
       if (st.answering) return h + `<div class="who">${e(S.nameOf(st, st.answering))}</div>`;
       if (st.buzzOpen) return h + '<div class="open-ind">Жмите!</div>';
       return h;
+    }
+    case 'final-select': {
+      const fs = st.finalSelect;
+      return `<div class="q-meta"><span class="muted">Финал: убираем темы</span></div>
+        <div class="q-meta">Убирает: <b>${e(S.nameOf(st, fs.turn))}</b> · осталось ${fs.options.filter((o) => !o.removed).length}</div>
+        <div style="max-width:1100px;margin:0 auto;width:100%">${S.finalGridHtml(fs, false)}</div>`;
     }
     case 'final-bets':
       return `<div class="q-meta"><span class="muted">Финал</span></div><div class="big-q">${e(f.theme)}</div>

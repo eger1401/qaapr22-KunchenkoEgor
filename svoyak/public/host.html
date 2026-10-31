@@ -188,7 +188,7 @@ function render() {
   prevAnswering = st.answering;
 
   const fk = st.final ? JSON.stringify(st.final) : '';
-  section('ctrl', JSON.stringify([cast, st.media, st.screens > 0, st.phase, st.board, st.q, st.buzzOpen, st.buzzOpenedAt, st.answering, st.wrong, st.chooser, fk, st.roundLeft,
+  section('ctrl', JSON.stringify([st.finalSelect, cast, st.media, st.screens > 0, st.phase, st.board, st.q, st.buzzOpen, st.buzzOpenedAt, st.answering, st.wrong, st.chooser, fk, st.roundLeft,
     st.phase === 'lobby' || st.phase === 'end' || (st.q && st.q.type === 'cat') ? st.players : st.players.map((p) => p.name)]), ctrlHtml(), bindCtrl);
   section('players', JSON.stringify([st.players, open, st.answering, st.chooser, st.phase]), playersHtml(), bindPlayers);
   section('rounds', JSON.stringify([st.rounds, st.board.index, st.phase, st.hasFinal]), roundsHtml(), (el) => {
@@ -355,6 +355,14 @@ function ctrlHtml() {
            <div class="assign">${left.map((p) => `<button class="btn small" data-assign="${e(p.id)}">${e(p.name)}</button>`).join('')}</div>` : '')
         + `<button class="btn ghost wide" data-act="reveal">Никто не ответил — пропустить вопрос</button>`;
     }
+    case 'final-select': {
+      const fs = st.finalSelect;
+      const left = fs.options.filter((o) => !o.removed).length;
+      return `<span class="label">Финал</span><h2>Убираем темы</h2>
+        <div class="status">Убирает: <b>${nm(fs.turn)}</b>. Осталось ${left}. Игроки убирают темы у себя на телефонах по очереди — или нажмите тему за игрока.</div>
+        <div class="muted" style="font-size:14px">Очередь: ${fs.order.map(nm).join(' → ')} (с меньшим счётом — первым)</div>
+        ${S.finalGridHtml(fs, true)}`;
+    }
     case 'final-bets': {
       const f = st.final;
       return `<span class="label">Финал</span><h2>${e(f.theme)}</h2>
@@ -431,6 +439,7 @@ function bindCtrl(el) {
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => b.addEventListener(t, hide));
     b.addEventListener('contextmenu', (ev) => ev.preventDefault());
   });
+  el.querySelectorAll('[data-rmfinal]').forEach((b) => b.onclick = () => act('removeFinal', { index: Number(b.dataset.rmfinal) }));
   el.querySelectorAll('[data-judge]').forEach((b) => b.onclick = () => act('finalJudge', { player: b.dataset.judge, ok: b.dataset.ok === '1' }));
 }
 

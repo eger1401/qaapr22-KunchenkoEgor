@@ -55,17 +55,17 @@
   const BONUS_LABELS = { cat: 'кот в мешке', norisk: 'без риска', auction: 'ставка', plusminus: 'плюс на минус', gift: 'попроси баллы', approx: 'отвечай приблизительно' };
 
   // бонусы выпадают на случайные вопросы: в каждом раунде каждый вид хотя бы раз
+  // бонусы разбросаны по всей игре: примерно каждый восьмой вопрос, раунды получают сколько выпадет
   function makeBonuses(pack) {
     const map = {};
-    pack.rounds.forEach((r, ri) => {
-      const cells = [];
-      r.themes.forEach((t, ti) => t.questions.forEach((_, qi) => cells.push(`${ri}:${ti}:${qi}`)));
-      const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-      shuffle(cells);
-      const count = Math.min(cells.length, Math.max(BONUS_POOL.length, Math.round(cells.length / 5)));
-      const pool = shuffle(BONUS_POOL.slice());
-      for (let k = 0; k < count; k++) map[cells[k]] = pool[k % pool.length];
-    });
+    const cells = [];
+    pack.rounds.forEach((r, ri) => r.themes.forEach((t, ti) => t.questions.forEach((_, qi) => cells.push(`${ri}:${ti}:${qi}`))));
+    const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    shuffle(cells);
+    const count = Math.min(cells.length, Math.max(BONUS_POOL.length, Math.round(cells.length / 8)));
+    const types = shuffle(BONUS_POOL.slice()); // каждый вид хотя бы раз, остальные — случайно
+    while (types.length < count) types.push(BONUS_POOL[Math.floor(Math.random() * BONUS_POOL.length)]);
+    for (let k = 0; k < count; k++) map[cells[k]] = types[k];
     return map;
   }
   const TYPE_ALIASES = { stake: 'auction', bet: 'auction', 'no-risk': 'norisk' };
@@ -85,7 +85,7 @@
   // history — уже сыгранные темы (их id); пока есть несыгранные, повторов нет
   function buildMix(packs, history = []) {
     const all = [];
-    packs.forEach((p) => p.rounds.forEach((r) => r.themes.forEach((t) => {
+    packs.forEach((p) => (p.rounds || []).forEach((r) => r.themes.forEach((t) => {
       if (t.questions.length >= 5) all.push({ id: t.name, t }); // одинаковые названия считаем одной темой
     })));
     const used = new Set(history);
@@ -114,8 +114,17 @@
         })),
       });
     }
-    const finals = packs.map((p) => p.final).filter(Boolean);
-    if (finals.length) mix.final = { ...finals[randInt(finals.length)] };
+    // финал: до 20 тем на выбор, сначала те, что ещё не играли
+    const seenF = new Set();
+    const finals = [];
+    const hasPool = packs.some((p) => p.finals && p.finals.length);
+    packs.forEach((p) => (hasPool ? p.finals || [] : [p.final]).forEach((f) => { // есть пул финалов — берём только из него
+      if (f && f.text && f.theme && !seenF.has(f.theme)) { seenF.add(f.theme); finals.push(f); }
+    }));
+    const freshF = shuffled(finals.filter((f) => !used.has('final:' + f.theme)));
+    const oldF = shuffled(finals.filter((f) => used.has('final:' + f.theme)));
+    mix.finals = freshF.concat(oldF).slice(0, 20).map((f) => ({ theme: f.theme, text: f.text, answer: f.answer }));
+    if (mix.finals.length === 1) mix.final = mix.finals[0];
     return validatePack(JSON.parse(JSON.stringify(mix)));
   }
   const FALSE_START_MS = 1000;
@@ -172,6 +181,26 @@
       game.answering = id;
       game.answeringAt = Date.now();
       log(`${name(id)} ставит ${a}`);
+    }
+
+    // убрать тему финала; by — игрок (должен быть его ход) или null — ведущий
+    function removeFinalTheme(index, by) {
+      if (game.phase !== 'final-select') throw new Error('Сейчас не выбираем тему финала');
+      const options = game.pack.finals;
+      const i = Number(index);
+      if (!options[i] || game.final.removed.includes(i)) throw new Error('Эта тема уже убрана');
+      const order = game.final.order.filter((pid) => game.players[pid]);
+      const current = order.length ? order[game.final.turn % order.length] : null;
+      if (by && by !== current) throw new Error('Сейчас убирает другой игрок');
+      game.final.removed.push(i);
+      game.final.turn += 1;
+      const left = options.map((_, k) => k).filter((k) => !game.final.removed.includes(k));
+      if (left.length === 1) {
+        game.pack.final = options[left[0]];
+        game.themeHistory = (game.themeHistory || []).concat('final:' + game.pack.final.theme);
+        game.phase = 'final-bets';
+        log(`Финал: осталась тема «${game.pack.final.theme}»`);
+      }
     }
 
     // ---------- действия ----------
@@ -335,7 +364,8 @@
         log(`${curRound().name}. Выбирает ${name(game.chooser)}`);
       },
       finalStart() {
-        if (!game.pack.final) throw new Error('В пакете нет финала');
+        const options = game.pack.finals && game.pack.finals.length > 1 ? game.pack.finals : null;
+        if (!game.pack.final && !options) throw new Error('В пакете нет финала');
         game.final = { bets: {}, answers: {}, judged: {} };
         game.q = null;
         game.buzzOpen = false;
@@ -345,8 +375,21 @@
           log('В финал никто не прошёл: у всех счёт 0 или меньше');
           return;
         }
+        if (options) {
+          // финалисты по очереди убирают темы, начиная с того, у кого меньше очков
+          game.pack.final = null;
+          game.final.removed = [];
+          game.final.order = finalists().slice().sort((a, b) => game.players[a].score - game.players[b].score);
+          game.final.turn = 0;
+          game.phase = 'final-select';
+          log(`Финал: выбираем тему из ${options.length}`);
+          return;
+        }
         game.phase = 'final-bets';
         log(`Финал: ${game.pack.final.theme || ''}`);
+      },
+      removeFinal({ index }) {
+        removeFinalTheme(index, null);
       },
       finalQuestion() {
         if (game.phase !== 'final-bets') return;
@@ -442,6 +485,10 @@
         if (!game.q || game.q.staker !== id) throw new Error('Ставку делает другой игрок');
         setStake(id, amount);
       },
+      removeFinal(id, { index }) {
+        if (!game.final.order || !game.final.order.includes(id)) throw new Error('Вы не в финале');
+        removeFinalTheme(index, id);
+      },
       bet(id, { amount }) {
         if (game.phase !== 'final-bets') throw new Error('Ставки сейчас не принимаются');
         const p = game.players[id];
@@ -486,7 +533,7 @@
         chooser: game.chooser,
         board: publicBoard(),
         rounds: game.pack.rounds.map((r) => r.name),
-        hasFinal: !!game.pack.final,
+        hasFinal: !!(game.pack.final || (game.pack.finals && game.pack.finals.length)),
         roundLeft: roundLeft(),
         buzzOpen: game.buzzOpen,
         buzzOpenedAt: game.buzzOpenedAt,
@@ -516,6 +563,14 @@
         }
       }
 
+      if (game.phase === 'final-select' && game.pack.finals) {
+        const order = game.final.order.filter((pid) => game.players[pid]);
+        v.finalSelect = {
+          options: game.pack.finals.map((f, i) => ({ i, theme: f.theme, removed: game.final.removed.includes(i) })),
+          turn: order.length ? order[game.final.turn % order.length] : null,
+          order,
+        };
+      }
       if (game.phase.startsWith('final') && game.pack.final) {
         const f = game.pack.final;
         const fin = finalists();
@@ -542,7 +597,7 @@
 
       if (isHost) {
         v.pin = game.pin;
-        v.packs = hooks.packs();
+        v.packs = hooks.packs().filter((p) => !p.hidden);
         v.screens = hooks.screens();
         v.log = game.log.slice(0, 12);
         v.urls = hooks.urls();

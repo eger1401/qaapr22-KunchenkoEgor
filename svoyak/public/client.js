@@ -264,6 +264,13 @@ const S = (() => {
     return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
   }
 
-  const VERSION = '17 · скрытые бонусы, рофл-темы';
-  return { VERSION, playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
+  const VERSION = '18 · финал из 20 тем, бонусы по всей игре';
+  // сетка тем финала; clickable — можно убирать
+  function finalGridHtml(fs, clickable) {
+    return '<div class="fgrid">' + fs.options.map((o) => (clickable && !o.removed
+      ? `<button class="fopt" data-rmfinal="${o.i}">${esc(o.theme)}</button>`
+      : `<div class="fopt${o.removed ? ' removed' : ''}">${esc(o.theme)}</div>`)).join('') + '</div>';
+  }
+
+  return { finalGridHtml, VERSION, playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

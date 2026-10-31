@@ -9,6 +9,11 @@
     "mix": true
   },
   {
+    "file": "rofl2.json",
+    "title": "Рофл 2",
+    "mix": true
+  },
+  {
     "file": "tusovka.json",
     "title": "Тусовка 18+",
     "mix": true
@@ -37,5 +42,11 @@
     "file": "classic.json",
     "title": "Свояк",
     "mix": true
+  },
+  {
+    "file": "finals.json",
+    "title": "Финалы (только для микса)",
+    "mix": true,
+    "hidden": true
   }
 ]

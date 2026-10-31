@@ -152,7 +152,7 @@ function render() {
 
   const f = st.final;
   const myFinal = f && f.players.find((p) => p.id === id);
-  const key = JSON.stringify([st.phase, st.board.index, st.board.themes.map((t) => t.cells.map((c) => c.used)), st.q, st.buzzOpen, st.buzzOpenedAt,
+  const key = JSON.stringify([st.finalSelect, st.phase, st.board.index, st.board.themes.map((t) => t.cells.map((c) => c.used)), st.q, st.buzzOpen, st.buzzOpenedAt,
     st.answering, st.wrong, st.chooser, f && f.text, f && f.answer, myFinal && [myFinal.hasBet, myFinal.hasAnswer, myFinal.bet], f && f.players.map((p) => p.ok),
     st.phase === 'end' || st.phase === 'lobby' ? st.players : 0]);
   if (key === lastKey) return;
@@ -211,6 +211,16 @@ function mainHtml(me, f, myFinal) {
         ? '<p class="center" style="margin:0;font-weight:600">Отвечают все — жми и отвечай!</p>' : '';
       return head + body + `<button class="buzz ${cls}" id="buzz" type="button">${label}</button>` + mustAnswer;
     }
+    case 'final-select': {
+      const fs = st.finalSelect;
+      const left = fs.options.filter((o) => !o.removed).length;
+      const inFinal = fs.order.includes(id);
+      const mine = fs.turn === id;
+      const head = `<div class="big-msg">Финал: выбираем тему</div>
+        <p class="center" style="margin:0">${!inFinal ? 'Вы не в финале — смотрим.' : mine ? '<b>Ваш ход!</b> Уберите тему, которую не хотите.' : `Убирает: <b>${e(S.nameOf(st, fs.turn))}</b>`}</p>
+        <p class="muted center" style="margin:0">Осталось тем: ${left}. Последняя оставшаяся будет финалом.</p>`;
+      return head + S.finalGridHtml(fs, mine);
+    }
     case 'final-bets':
       if (!myFinal) return `<div class="big-msg">Финал: ${e(f.theme)}</div><p class="muted center">В финал проходят игроки с положительным счётом. Смотрим!</p>`;
       if (myFinal.hasBet) return `<div class="big-msg">Финал: ${e(f.theme)}</div><p class="center">Ваша ставка: <span class="price">${myFinal.bet}</span></p><p class="muted center">Можно изменить, пока ведущий не показал вопрос</p>` + betForm(me);
@@ -254,6 +264,10 @@ function bindMain() {
     bf.addEventListener('submit', (e) => { e.preventDefault(); sendBet($('#betInput').value); });
     $('#allIn').addEventListener('click', () => sendBet(st.players.find((p) => p.id === id).score));
   }
+  document.querySelectorAll('#main [data-rmfinal]').forEach((b) => b.addEventListener('click', async () => {
+    try { await S.post({ role: 'player', id, type: 'removeFinal', index: Number(b.dataset.rmfinal) }); }
+    catch (err) { S.toast(err.message); }
+  }));
   const sf = $('#stakeForm');
   if (sf) {
     const send = async (v) => {

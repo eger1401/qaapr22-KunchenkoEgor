@@ -35,7 +35,7 @@ function packByFile(file) {
 
 function listPacks() {
   const index = readIndex();
-  if (index) return index.filter((p) => p.file === MIX_FILE || fs.existsSync(path.join(PACKS_DIR, path.basename(p.file)))).map(({ file, title }) => ({ file, title }));
+  if (index) return index.filter((p) => p.file === MIX_FILE || fs.existsSync(path.join(PACKS_DIR, path.basename(p.file)))).map(({ file, title, hidden }) => ({ file, title, hidden }));
   let files = [];
   try { files = fs.readdirSync(PACKS_DIR).filter((f) => f.endsWith('.json') && f !== 'index.json').sort(); } catch { /* нет папки */ }
   return files.map((file) => {
