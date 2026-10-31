@@ -124,13 +124,17 @@ const SvoyakOnline = (() => {
     store('svoyak.online.code', code);
 
     const conns = new Map(); // "сервер|cid" -> { bi, cid, role, id, seen }
-    let packs = [{ file: 'svoi.json', title: 'Для своих' }, { file: 'classic.json', title: 'Свояк' }];
+    // запасной список, если packs/index.json не загрузится
+    let packs = [
+      { file: '@random', title: 'Случайный микс' },
+      ...['tusovka', 'miks', 'legkiy', 'media', 'svoi', 'classic'].map((f) => ({ file: f + '.json', title: f, mix: true })),
+    ];
     let engine = null;
     let links = [];
 
     let mixPacks = [];
     const packByFile = async (file) => (file === SvoyakEngine.MIX_FILE
-      ? SvoyakEngine.buildMix(mixPacks, engine ? (engine.state.themeHistory || []).concat(engine.state.pack.ids || []) : [])
+      ? SvoyakEngine.buildMix(mixPacks, engine ? engine.state.themeHistory || [] : [])
       : fetchJson('../packs/' + encodeURIComponent(file)));
 
     const hooks = {

@@ -263,5 +263,6 @@ const S = (() => {
     return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
   }
 
-  return { playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
+  const VERSION = '15 · темы меняются при каждом старте';
+  return { VERSION, playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

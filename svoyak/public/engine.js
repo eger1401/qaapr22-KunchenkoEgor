@@ -180,6 +180,17 @@
     const hostActions = {
       start() {
         if (!game.order.length) throw new Error('Пока нет ни одного игрока');
+        // каждая игра — новые случайные темы, которые ещё не играли (если ведущий не выбрал конкретный пакет)
+        const mixPacks = hooks.mixPacks ? hooks.mixPacks() : [];
+        if (!game.fixed && mixPacks.length) {
+          const history = game.themeHistory || [];
+          const pack = buildMix(mixPacks, history);
+          game.pack = pack;
+          game.themeHistory = pack.historyReset ? pack.ids.slice() : history.concat(pack.ids);
+          game.bonus = makeBonuses(pack);
+          game.used = {};
+          game.final = { bets: {}, answers: {}, judged: {} };
+        }
         game.phase = 'board';
         game.round = 0;
         game.chooser = game.order[randInt(game.order.length)];
@@ -358,16 +369,13 @@
       },
       newGame() {
         const keepPlayers = game.order.map((id) => ({ id, name: game.players[id].name }));
-        // «Начать заново» всегда собирает новые случайные темы, которые ещё не играли
-        const prevIds = game.pack.ids || [];
-        let history = (game.themeHistory || []).concat(prevIds);
-        const mixPacks = hooks.mixPacks ? hooks.mixPacks() : [];
-        const pack = mixPacks.length ? buildMix(mixPacks, history) : game.pack;
-        if (pack.historyReset) history = prevIds.slice();
-        game = freshGame(pack, game.pin);
-        game.themeHistory = history;
+        // новые темы соберутся при «Начать игру»
+        const keep = { fixed: game.fixed, history: game.themeHistory || [] };
+        game = freshGame(game.pack, game.pin);
+        game.fixed = keep.fixed;
+        game.themeHistory = keep.history;
         keepPlayers.forEach(({ id, name: n }) => { game.players[id] = { name: n, score: 0 }; game.order.push(id); });
-        log(pack.mix ? 'Новая игра, новые темы' : 'Новая игра');
+        log('Новая игра');
       },
       usePack({ file }) {
         hostActions.loadPack({ pack: hooks.loadPackFile(file) });
@@ -375,9 +383,10 @@
       loadPack({ pack }) {
         const p = validatePack(pack);
         const keepPlayers = game.order.map((id) => ({ id, name: game.players[id].name }));
-        const history = (game.themeHistory || []).concat(game.pack.ids || []);
+        const history = game.themeHistory || [];
         game = freshGame(p, game.pin);
         game.themeHistory = history;
+        game.fixed = !p.mix; // выбран конкретный пакет — темы не перемешиваем
         keepPlayers.forEach(({ id, name: n }) => { game.players[id] = { name: n, score: 0 }; game.order.push(id); });
         log(`Загружен пакет «${p.title}»`);
       },

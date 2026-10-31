@@ -29,7 +29,7 @@ function mixPacks() {
 }
 
 function packByFile(file) {
-  if (file === MIX_FILE) return buildMix(mixPacks(), engineRef ? (engineRef.state.themeHistory || []).concat(engineRef.state.pack.ids || []) : []);
+  if (file === MIX_FILE) return buildMix(mixPacks(), engineRef ? engineRef.state.themeHistory || [] : []);
   return JSON.parse(fs.readFileSync(path.join(PACKS_DIR, path.basename(file)), 'utf8'));
 }
 
