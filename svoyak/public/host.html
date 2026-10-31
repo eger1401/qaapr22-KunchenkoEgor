@@ -68,7 +68,7 @@
           <div style="display:grid;gap:12px;margin-top:12px">
             <p class="muted" style="margin:0">При смене пакета игроки останутся, а счёт обнулится.</p>
             <div id="packs" class="packs"></div>
-            <a class="btn ghost no-cast" href="/cheat" target="_blank" style="text-align:center;text-decoration:none">Шпаргалка со всеми ответами</a>
+            <a class="btn ghost no-cast" href="cheat.html" target="_blank" style="text-align:center;text-decoration:none">Шпаргалка со всеми ответами</a>
             <span class="label" style="margin-top:6px">Или свой файл .json</span>
             <input id="packFile" type="file" accept=".json,application/json">
             <div id="confirmNew" class="row">
@@ -115,7 +115,37 @@ async function act(type, extra = {}) {
   catch (err) { S.toast(err.message); }
 }
 
+const statusLine = (on, msg) => {
+  $('#conn').classList.toggle('on', on);
+  $('#conn').title = on ? 'на связи' : (msg || 'нет связи');
+  if (msg && !on) S.toast(msg);
+};
+
 async function login(k) {
+  if (S.ONLINE) {
+    $('#login').hidden = true;
+    $('#app').hidden = false;
+    conn && conn.close();
+    if (!S.room()) {
+      // этот телефон и есть «сервер» игры
+      conn = S.connect({ role: 'host' }, (s) => { st = s; render(); }, statusLine);
+      return;
+    }
+    // второй пульт для той же комнаты: нужен PIN
+    if (!k) { $('#login').hidden = false; $('#app').hidden = true; return; }
+    key = k;
+    conn = S.connect({ role: 'host', key }, (s) => { st = s; S.store('svoyak.hostKey', key); render(); }, statusLine, {
+      onMessage: (msg) => {
+        if (msg.t !== 'denied') return;
+        S.toast(msg.error);
+        S.store('svoyak.hostKey', null);
+        conn.close();
+        $('#login').hidden = false;
+        $('#app').hidden = true;
+      },
+    });
+    return;
+  }
   try {
     await S.post({ role: 'host', key: k, type: 'check' });
     key = k;
@@ -134,6 +164,12 @@ async function login(k) {
 $('#loginForm').addEventListener('submit', (ev) => { ev.preventDefault(); login($('#pinInput').value.trim()); });
 login(key);
 applyCast();
+
+// экран не гаснет во время игры (если браузер позволяет)
+async function keepAwake() { try { await navigator.wakeLock.request('screen'); } catch { /* нет поддержки */ } }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+document.addEventListener('pointerdown', keepAwake, { once: true });
+keepAwake();
 
 function section(id, k, html, bind) {
   if (keys[id] === k) return;
@@ -160,7 +196,20 @@ function render() {
     el.querySelector('[data-final]') && (el.querySelector('[data-final]').onclick = () => act('finalStart'));
     el.querySelector('[data-end]').onclick = () => act('end');
   });
-  section('info', JSON.stringify([cast, st.urls, st.pin]), `
+  const cheat = document.querySelector('a[href="cheat.html"], a[data-cheat]');
+  if (cheat) { cheat.dataset.cheat = '1'; cheat.href = st.online ? st.online.cheat : 'cheat.html'; }
+  if (st.online) {
+    section('info', JSON.stringify([cast, st.online, st.pin]), onlineInfoHtml(), (el) => {
+      S.qrSvg(st.online.play).then((svg) => { const q = el.querySelector('#qr'); if (q) q.innerHTML = svg; });
+      const nb = el.querySelector('#newRoom');
+      if (nb) nb.onclick = () => {
+        if (!nb.dataset.sure) { nb.dataset.sure = '1'; nb.textContent = 'Точно? Игрокам нужен будет новый код'; return; }
+        S.transport() && S.transport().newRoom && S.transport().newRoom();
+      };
+      const cp = el.querySelector('#copyLink');
+      if (cp) cp.onclick = () => navigator.clipboard.writeText(st.online.play).then(() => S.toast('Ссылка скопирована'), () => S.toast('Не удалось скопировать'));
+    });
+  } else section('info', JSON.stringify([cast, st.urls, st.pin]), `
     <div class="urls" style="display:grid;gap:6px">
       <div>Игрокам: ${st.urls.map((u) => `<code>${e(u)}/play</code>`).join(' или ')}</div>
       ${cast ? '<div class="muted">PIN и журнал скрыты, пока идёт трансляция</div>' : `
@@ -178,6 +227,23 @@ function render() {
 }
 
 function nm(id) { return e(S.nameOf(st, id)); }
+const playUrl = () => (st.online ? st.online.play : st.urls[0] + '/play');
+
+function onlineInfoHtml() {
+  const o = st.online;
+  return `<div style="display:grid;gap:10px">
+    <div class="q-head"><span>Код комнаты</span><span class="price" style="font-size:32px;letter-spacing:.12em">${e(o.code)}</span></div>
+    <div class="muted" style="font-size:14px">${o.connected ? 'Комната открыта. Ребята сканируют QR или открывают ссылку.' : 'Открываем комнату… нужен интернет.'}</div>
+    <div id="qr" style="background:#fff;border-radius:12px;padding:8px;width:min(220px,100%);margin:0 auto"></div>
+    <div class="urls"><code>${e(o.play)}</code></div>
+    <button class="btn" id="copyLink" type="button">Скопировать ссылку для игроков</button>
+    ${cast ? '<div class="muted">PIN скрыт, пока идёт трансляция</div>' : `
+      <div class="muted" style="font-size:14px">Большой экран: <code style="font-size:13px">${e(o.screen)}</code></div>
+      <div class="muted" style="font-size:14px">PIN для второго пульта и шпаргалки: <b>${e(st.pin)}</b></div>
+      <button class="btn ghost small" id="newRoom" type="button">Новый код комнаты</button>`}
+    <div class="muted" style="font-size:13px">Не закрывайте эту вкладку и не сворачивайте Safari надолго: игра живёт на этом телефоне.</div>
+  </div>`;
+}
 
 // ответ для ведущего; в режиме трансляции виден только пока держишь кнопку
 function answerHtml(answer) {
@@ -209,7 +275,7 @@ function ctrlHtml() {
   switch (st.phase) {
     case 'lobby':
       return `<h2>Ждём игроков</h2>
-        <p class="muted" style="margin:0">Игроки открывают <b style="color:var(--gold)">${e(st.urls[0])}/play</b> и вводят имя.</p>
+        <p class="muted" style="margin:0">${st.online ? `Код комнаты <b class="price" style="font-size:20px">${e(st.online.code)}</b>. QR и ссылка — ниже, в «Подключение».` : `Игроки открывают <b style="color:var(--gold)">${e(playUrl())}</b> и вводят имя.`}</p>
         <p style="margin:0">В игре: ${st.players.length ? st.players.map((p) => e(p.name)).join(', ') : '<span class="muted">пока никого</span>'}</p>
         <button class="btn gold wide" data-act="start" ${st.players.length ? '' : 'disabled'}>Начать игру</button>`;
     case 'board': {

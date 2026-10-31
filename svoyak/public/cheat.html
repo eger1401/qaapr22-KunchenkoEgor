@@ -28,17 +28,37 @@
 <script src="client.js"></script>
 <script>
 const e = S.esc;
-async function load(pin) {
-  const r = await fetch('/cheat.json?key=' + encodeURIComponent(pin));
-  if (!r.ok) { document.getElementById('f').hidden = false; if (pin) S.toast('Неверный PIN'); return; }
-  S.store('svoyak.hostKey', pin);
+function show(pack) {
   document.getElementById('f').hidden = true;
-  const pack = await r.json();
   const qa = (q) => `<div class="qa"><span class="price">${q.price ?? ''}</span><div><small>${e(q.text)}${q.type === 'cat' ? ' · кот в мешке' : ''}</small><b>${e(q.answer)}</b></div></div>`;
   document.getElementById('out').innerHTML = `<h2>${e(pack.title)}</h2>` + pack.rounds.map((r) => `
     <div class="card"><span class="label">${e(r.name)}</span>
       ${r.themes.map((t) => `<div class="theme-block"><h3>${e(t.name)}</h3>${t.questions.map(qa).join('')}</div>`).join('')}
     </div>`).join('') + (pack.final ? `<div class="card"><span class="label">Финал · ${e(pack.final.theme || '')}</span>${qa(pack.final)}</div>` : '');
+}
+let online = null;
+async function load(pin) {
+  if (!pin) { document.getElementById('f').hidden = false; return; }
+  if (S.ONLINE) {
+    // онлайн: просим ответы у телефона ведущего
+    if (online) online.close();
+    online = S.connect({ role: 'cheat' }, () => {}, () => {}, { onMessage: (m) => window.onCheat && window.onCheat(m) });
+    await online.ready;
+    const t = S.transport();
+    const ask = setInterval(() => t.send({ t: 'cheat', key: pin }), 1500);
+    t.send({ t: 'cheat', key: pin });
+    window.onCheat = (msg) => {
+      clearInterval(ask);
+      if (msg.t === 'denied') { S.store('svoyak.hostKey', null); document.getElementById('f').hidden = false; S.toast('Неверный PIN'); return; }
+      S.store('svoyak.hostKey', pin);
+      show(msg.pack);
+    };
+    return;
+  }
+  const r = await fetch('/cheat.json?key=' + encodeURIComponent(pin));
+  if (!r.ok) { document.getElementById('f').hidden = false; S.toast('Неверный PIN'); return; }
+  S.store('svoyak.hostKey', pin);
+  show(await r.json());
 }
 document.getElementById('f').addEventListener('submit', (ev) => { ev.preventDefault(); load(document.getElementById('pin').value.trim()); });
 load(S.store('svoyak.hostKey') || '');

@@ -66,7 +66,18 @@ function syncAudio(st) {
   audio.play().catch(() => { $('#sound').hidden = false; });
 }
 
-S.connect({ role: 'screen' }, (st) => {
+if (S.ONLINE && !S.room()) {
+  $('#stage').innerHTML = `<form id="roomForm" class="card" style="max-width:420px;margin:0 auto;width:100%">
+    <label class="label" for="roomInput">Код комнаты (есть на пульте ведущего)</label>
+    <input id="roomInput" type="text" maxlength="6" autocapitalize="characters" autocomplete="off" required>
+    <button class="btn gold" type="submit">Показать табло</button></form>`;
+  $('#roomForm').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const u = new URL(location.href);
+    u.searchParams.set('room', $('#roomInput').value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+    location.href = u.href;
+  });
+} else S.connect({ role: 'screen' }, (st) => {
   syncAudio(st);
   if (st.phase !== 'question' && st.phase !== 'reveal' && !audio.paused) audio.pause();
   $('#round').textContent = st.phase === 'lobby' ? '' : st.phase.startsWith('final') ? 'Финал' : st.board.name;
@@ -78,12 +89,24 @@ S.connect({ role: 'screen' }, (st) => {
   if (key === lastKey) return;
   lastKey = key;
   $('#stage').innerHTML = stage(st);
-}, (on) => $('#conn').classList.toggle('on', on));
+}, (on, msg) => {
+  $('#conn').classList.toggle('on', on);
+  if (!on && msg && !$('#stage').innerHTML) $('#stage').innerHTML = `<div class="q-meta muted">${e(msg)}</div>`;
+});
 
 function stage(st) {
   const f = st.final;
   switch (st.phase) {
     case 'lobby':
+      if (S.ONLINE) {
+        const link = SvoyakOnline.link('play.html', S.room());
+        setTimeout(() => S.qrSvg(link, 6).then((svg) => { const q = document.getElementById('qr'); if (q) q.innerHTML = svg; }));
+        return `<div class="join"><div class="muted">Наведите камеру телефона на код или откройте ссылку</div>
+          <div id="qr" style="background:#fff;border-radius:1vw;padding:1vw;width:min(28vh,60vw);margin:0 auto"></div>
+          <div>Код комнаты: <span class="price" style="font-size:1.6em;letter-spacing:.12em">${e(S.room())}</span></div>
+          <div class="muted" style="font-size:.8em;word-break:break-all">${e(link)}</div>
+          <div>${st.players.length ? 'Уже в игре: ' + st.players.map((p) => e(p.name)).join(', ') : 'Пока никого'}</div></div>`;
+      }
       return `<div class="join"><div class="muted">Заходите в игру с телефона — откройте в браузере:</div>
         <code>${e(location.host)}/play</code>
         <div>${st.players.length ? 'Уже в игре: ' + st.players.map((p) => e(p.name)).join(', ') : 'Пока никого'}</div></div>`;

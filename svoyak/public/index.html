@@ -21,13 +21,19 @@
 <div class="wrap">
   <div class="hero">
     <h1>Свояк</h1>
-    <p class="muted">Викторина для компании в одной Wi‑Fi сети</p>
+    <p class="muted" id="sub">Викторина для компании в одной Wi‑Fi сети</p>
   </div>
   <div class="roles">
-    <a class="btn gold" href="/play"><b>Я игрок</b><span>Кнопка, вопросы и свой счёт на телефоне</span></a>
-    <a class="btn" href="/host"><b>Я ведущий</b><span>Нужен PIN из окна сервера</span></a>
-    <a class="btn ghost" href="/screen"><b>Большой экран</b><span>Табло для телевизора или ноутбука</span></a>
+    <a class="btn gold" href="play.html"><b>Я игрок</b><span>Кнопка, вопросы и свой счёт на телефоне</span></a>
+    <a class="btn" href="host.html"><b>Я ведущий</b><span id="hostHint">Нужен PIN из окна сервера</span></a>
+    <a class="btn ghost" href="screen.html"><b>Большой экран</b><span>Табло для телевизора или ноутбука</span></a>
   </div>
 </div>
+<script>
+if (location.protocol === 'https:' || location.protocol === 'file:') {
+  document.getElementById('sub').textContent = 'Онлайн-викторина: ведущий создаёт комнату, игроки заходят по коду';
+  document.getElementById('hostHint').textContent = 'Игра будет жить на вашем телефоне';
+}
+</script>
 </body>
 </html>

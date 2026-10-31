@@ -1,8 +1,27 @@
 // Общие функции для всех экранов.
 const S = (() => {
   let offset = 0; // разница часов сервера и устройства
+  const query = new URLSearchParams(location.search);
+  // онлайн-режим: страница открыта не с локального сервера, а из интернета (https)
+  const ONLINE = location.protocol === 'https:' || location.protocol === 'file:' || query.has('online');
+  const room = () => String(query.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  let transport = null;
 
-  function connect(params, onState, onStatus) {
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[data-src="${src}"]`)) { resolve(); return; }
+      const el = document.createElement('script');
+      el.src = src;
+      el.dataset.src = src;
+      el.onload = resolve;
+      el.onerror = () => reject(new Error('Не загрузился ' + src));
+      document.head.appendChild(el);
+    });
+  }
+
+  // params: { role, id?, key? }; extra: { onMessage } для онлайн-режима
+  function connect(params, onState, onStatus, extra = {}) {
+    if (ONLINE) return connectOnline(params, onState, onStatus, extra);
     let es;
     let retry;
     function open() {
@@ -25,7 +44,28 @@ const S = (() => {
     return { close: () => es && es.close() };
   }
 
+  function connectOnline(params, onState, onStatus, extra) {
+    const st = (s) => { offset = s.now - Date.now(); onState(s); };
+    const status = (on, msg) => onStatus && onStatus(on, msg);
+    const local = params.role === 'host' && !room();
+    const ready = loadScript('vendor/peerjs.min.js')
+      .then(() => loadScript('online.js'))
+      .then(() => (local ? loadScript('engine.js') : null))
+      .then(() => {
+        transport = local
+          ? SvoyakOnline.startHost({ onState: st, onStatus: status, store })
+          : SvoyakOnline.connectRemote({ code: room(), hello: () => ({ t: 'hello', ...params }), onState: st, onStatus: status, onMessage: extra.onMessage });
+        return transport;
+      })
+      .catch((e) => status(false, e.message));
+    return { close: () => ready.then(() => transport && transport.close()), ready };
+  }
+
   async function post(body) {
+    if (ONLINE) {
+      if (!transport) throw new Error('Подключаемся…');
+      return transport.post(body);
+    }
     const r = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -143,11 +183,23 @@ const S = (() => {
 
   function mediaUrl(src) {
     if (!src) return '';
-    return /^(https?:)?\/\//.test(src) || src.startsWith('/') ? src : '/media/' + src.split('/').map(encodeURIComponent).join('/');
+    if (/^(https?:)?\/\//.test(src) || src.startsWith('/')) return src;
+    return (ONLINE ? '../media/' : '/media/') + src.split('/').map(encodeURIComponent).join('/');
   }
   function imageHtml(q) {
     return q && q.image ? `<img class="q-img" src="${esc(mediaUrl(q.image))}" alt="">` : '';
   }
 
-  return { mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
+  // QR-код ссылки (svg), если библиотека загружена
+  async function qrSvg(text, cell = 5) {
+    try {
+      await loadScript('vendor/qrcode.js');
+      const qr = qrcode(0, 'M');
+      qr.addData(text);
+      qr.make();
+      return qr.createSvgTag({ cellSize: cell, margin: 2, scalable: true });
+    } catch { return ''; }
+  }
+
+  return { ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

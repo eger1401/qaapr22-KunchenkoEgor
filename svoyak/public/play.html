@@ -32,9 +32,12 @@
 </head>
 <body>
 <div class="wrap">
+  <div id="netmsg" class="card muted" role="status">Подключаемся к игре…</div>
   <section id="join" class="card" hidden>
     <h1 style="color:var(--gold)">Свояк</h1>
     <form id="joinForm" class="row">
+      <label class="label" for="roomInput" id="roomLabel" style="flex-basis:100%" hidden>Код комнаты (есть у ведущего)</label>
+      <input id="roomInput" type="text" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Например, K7PX" hidden>
       <label class="label" for="nameInput" style="flex-basis:100%">Как вас зовут?</label>
       <input id="nameInput" type="text" maxlength="20" autocomplete="nickname" placeholder="Имя" required>
       <button class="btn gold wide" type="submit">Войти в игру</button>
@@ -80,6 +83,16 @@ $('#joinForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = $('#nameInput').value.trim();
   if (!name) return;
+  if (!$('#roomInput').hidden) {
+    // онлайн: запоминаем имя и открываем страницу уже с кодом комнаты
+    const code = $('#roomInput').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length < 4) { S.toast('Введите код комнаты'); return; }
+    S.store('svoyak.name', name);
+    const u = new URL(location.href);
+    u.searchParams.set('room', code);
+    location.href = u.href;
+    return;
+  }
   try {
     await S.post({ role: 'player', id, type: 'join', name });
     S.store('svoyak.name', name);
@@ -93,8 +106,23 @@ $('#joinForm').addEventListener('submit', async (e) => {
 $('#renameBtn').addEventListener('click', showJoin);
 
 let autoJoinTried = false;
-S.connect({ role: 'player', id }, (s) => {
+function net(on, msg) {
+  $('#conn').classList.toggle('on', on);
+  const m = $('#netmsg');
+  if (on) m.hidden = true;
+  else if (msg) { m.hidden = false; m.textContent = msg; }
+}
+if (S.ONLINE && !S.room()) {
+  // онлайн без кода: спрашиваем код и имя
+  $('#netmsg').hidden = true;
+  $('#roomLabel').hidden = false;
+  $('#roomInput').hidden = false;
+  $('#roomInput').required = true;
+  showJoin();
+  $('#roomInput').focus();
+} else S.connect({ role: 'player', id }, (s) => {
   st = s;
+  $('#netmsg').hidden = true;
   const meIn = st.players.some((p) => p.id === id);
   if (!meIn) {
     joined = false;
@@ -108,7 +136,7 @@ S.connect({ role: 'player', id }, (s) => {
   }
   joined = true;
   render();
-}, (on) => $('#conn').classList.toggle('on', on));
+}, net);
 
 function render() {
   if (!st || !joined) return;
