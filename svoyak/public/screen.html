@@ -116,7 +116,7 @@ function stage(st) {
       let h = `<div class="q-meta"><span class="muted">${e(q.theme)}</span><span class="price">${q.price}</span>${q.type === 'cat' ? '<span class="tag">Кот в мешке</span>' : ''}</div>
         <div class="big-q">${e(q.text)}</div>${S.imageHtml(q)}`;
       if (st.phase === 'reveal') return h + `<div class="ans">${e(q.answer)}</div>`;
-      if (st.answering) return h + `<div class="who">${e(S.nameOf(st, st.answering))}</div><div class="timer" data-timer-start="${st.answeringAt}"><i></i></div>`;
+      if (st.answering) return h + `<div class="who">${e(S.nameOf(st, st.answering))}</div>`;
       if (st.buzzOpen) return h + '<div class="open-ind">Жмите!</div>';
       return h;
     }

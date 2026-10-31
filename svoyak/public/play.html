@@ -194,9 +194,7 @@ function mainHtml(me, f, myFinal) {
       else if (st.answering) { cls = 'out'; label = 'Отвечает<br>' + e(S.nameOf(st, st.answering)); }
       else if (st.wrong.includes(id)) { cls = 'out'; label = 'Вы уже<br>ответили'; }
       else if (st.buzzOpen) { cls = 'open'; label = 'ЖМИ!'; }
-      const timer = st.answering ? `<div class="timer" data-timer-start="${st.answeringAt}"><i></i></div>` : '';
-      return head + body + timer + `<button class="buzz ${cls}" id="buzz" type="button">${label}</button>
-        <p class="muted center" style="margin:0;font-size:14px">Жать можно, когда кнопка покраснеет. Раньше — блокировка на 1 секунду.</p>`;
+      return head + body + `<button class="buzz ${cls}" id="buzz" type="button">${label}</button>`;
     }
     case 'final-bets':
       if (!myFinal) return `<div class="big-msg">Финал: ${e(f.theme)}</div><p class="muted center">В финал проходят игроки с положительным счётом. Смотрим!</p>`;

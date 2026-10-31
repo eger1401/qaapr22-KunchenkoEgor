@@ -102,9 +102,11 @@
         game.q = { t, i, theme: theme.name, price: q.price, text: q.text, answer: q.answer, type: q.type, image: q.image, audio: q.audio };
         game.media = null;
         game.phase = 'question';
-        game.buzzOpen = false;
         game.answering = null;
         game.wrong = [];
+        // кнопка у игроков активна сразу после выбора вопроса (кроме кота в мешке)
+        game.buzzOpen = q.type !== 'cat';
+        game.buzzOpenedAt = Date.now();
         log(`${theme.name} за ${q.price}${q.type === 'cat' ? ' — кот в мешке' : ''}`);
       },
       openBuzz() {
