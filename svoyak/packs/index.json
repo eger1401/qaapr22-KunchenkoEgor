@@ -8,54 +8,65 @@
     "title": "Случайный микс 18+"
   },
   {
-    "file": "ogon18.json",
-    "title": "18+ Огонь",
+    "file": "novyi1.json",
+    "title": "Новый сезон 1",
     "mix": true
+  },
+  {
+    "file": "novyi2.json",
+    "title": "Новый сезон 2",
+    "mix": true
+  },
+  {
+    "file": "novyi18.json",
+    "title": "Новый сезон 18+",
+    "mix": true
+  },
+  {
+    "file": "finals2.json",
+    "title": "Финалы: новый сезон",
+    "mix": true,
+    "hidden": true
+  },
+  {
+    "file": "ogon18.json",
+    "title": "18+ Огонь"
   },
   {
     "file": "rofl.json",
-    "title": "Рофл",
-    "mix": true
+    "title": "Рофл"
   },
   {
     "file": "rofl2.json",
-    "title": "Рофл 2",
-    "mix": true
+    "title": "Рофл 2"
   },
   {
     "file": "tusovka.json",
-    "title": "Тусовка 18+",
-    "mix": true
+    "title": "Тусовка 18+"
   },
   {
     "file": "miks.json",
-    "title": "Микс для всех",
-    "mix": true
+    "title": "Микс для всех"
   },
   {
     "file": "legkiy.json",
-    "title": "Лёгкий для всех",
-    "mix": true
+    "title": "Лёгкий для всех"
   },
   {
     "file": "media.json",
-    "title": "Картинки",
-    "mix": true
+    "title": "Картинки"
   },
   {
     "file": "svoi.json",
-    "title": "Для своих",
-    "mix": true
+    "title": "Для своих"
   },
   {
     "file": "classic.json",
-    "title": "Свояк",
-    "mix": true
+    "title": "Свояк"
   },
   {
     "file": "finals.json",
-    "title": "Финалы (только для микса)",
-    "mix": true,
+    "title": "Финалы (старые)",
     "hidden": true
   }
 ]

@@ -264,7 +264,7 @@ const S = (() => {
     return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
   }
 
-  const VERSION = '20 · кот в мешке скрыт до передачи';
+  const VERSION = '21 · новый сезон: 36 новых тем';
   // сетка тем финала; clickable — можно убирать
   function finalGridHtml(fs, clickable) {
     return '<div class="fgrid">' + fs.options.map((o) => (clickable && !o.removed

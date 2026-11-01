@@ -55,17 +55,25 @@
   const BONUS_LABELS = { cat: 'кот в мешке', norisk: 'без риска', auction: 'ставка', plusminus: 'плюс на минус', gift: 'попроси баллы', approx: 'отвечай приблизительно' };
 
   // бонусы выпадают на случайные вопросы: в каждом раунде каждый вид хотя бы раз
-  // бонусы разбросаны по всей игре: примерно каждый восьмой вопрос, раунды получают сколько выпадет
+  // бонусы: 1–2 на раунд, виды не повторяются между раундами (пока хватает видов)
   function makeBonuses(pack) {
     const map = {};
-    const cells = [];
-    pack.rounds.forEach((r, ri) => r.themes.forEach((t, ti) => t.questions.forEach((_, qi) => cells.push(`${ri}:${ti}:${qi}`))));
     const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-    shuffle(cells);
-    const count = Math.min(cells.length, Math.max(BONUS_POOL.length, Math.round(cells.length / 8)));
-    const types = shuffle(BONUS_POOL.slice()); // каждый вид хотя бы раз, остальные — случайно
-    while (types.length < count) types.push(BONUS_POOL[Math.floor(Math.random() * BONUS_POOL.length)]);
-    for (let k = 0; k < count; k++) map[cells[k]] = types[k];
+    let deck = [];
+    const draw = (avoid) => {
+      if (!deck.length) deck = shuffle(BONUS_POOL.slice());
+      let k = deck.findIndex((t) => !avoid.includes(t));
+      if (k < 0) k = 0;
+      return deck.splice(k, 1)[0];
+    };
+    pack.rounds.forEach((r, ri) => {
+      const cells = [];
+      r.themes.forEach((t, ti) => t.questions.forEach((_, qi) => cells.push(`${ri}:${ti}:${qi}`)));
+      shuffle(cells);
+      const n = Math.min(cells.length, 1 + Math.floor(Math.random() * 2));
+      const inRound = [];
+      for (let k = 0; k < n; k++) { const t = draw(inRound); inRound.push(t); map[cells[k]] = t; }
+    });
     return map;
   }
   const TYPE_ALIASES = { stake: 'auction', bet: 'auction', 'no-risk': 'norisk' };
@@ -92,22 +100,29 @@
       if (t.questions.length >= 5) all.push({ id: t.name, t, adult: !!p.adult }); // одинаковые названия считаем одной темой
     })));
     const used = new Set(history);
+    const qKeyOf = (q) => 'q:' + String(q.text).toLowerCase().replace(/[^a-zа-яёіїєґ0-9]/gi, '').slice(0, 60);
     const names = new Set(); // в одной игре — без одинаковых названий тем
+    const qs = new Set(); // и без одинаковых вопросов
     const chosen = [];
-    const take = (list) => {
+    const take = (list, strict) => {
       for (const x of list) {
         if (chosen.length >= 15) break;
-        if (!names.has(x.t.name)) { names.add(x.t.name); chosen.push(x); }
+        if (names.has(x.t.name)) continue;
+        const keys = x.t.questions.slice(0, 5).map(qKeyOf);
+        if (keys.some((k) => qs.has(k) || (strict && used.has(k)))) continue; // вопрос уже был
+        names.add(x.t.name);
+        keys.forEach((k) => qs.add(k));
+        chosen.push(x);
       }
     };
     if (opts.adult) {
       const adult = all.filter((x) => x.adult);
       const quota = shuffled(adult.filter((x) => !used.has(x.id))).concat(shuffled(adult.filter((x) => used.has(x.id)))).slice(0, opts.adult);
-      take(quota);
+      take(quota, true);
     }
-    take(shuffled(all.filter((x) => !used.has(x.id))));
+    take(shuffled(all.filter((x) => !used.has(x.id))), true);
     const historyReset = chosen.length < 15; // всё сыграно — начинаем новый круг
-    if (historyReset) take(shuffled(all.filter((x) => used.has(x.id))));
+    if (historyReset) take(shuffled(all), false);
     chosen.splice(0, chosen.length, ...shuffled(chosen)); // взрослые темы — по разным раундам
     const roundNames = ['Первый раунд', 'Второй раунд', 'Третий раунд'];
     const rounds = Math.max(1, Math.min(3, Math.floor(chosen.length / 5)));
@@ -115,6 +130,7 @@
     for (let r = 0; r < rounds; r++) {
       const part = chosen.slice(r * 5, r * 5 + 5);
       mix.ids.push(...part.map((x) => x.id));
+      part.forEach((x) => x.t.questions.slice(0, 5).forEach((q) => mix.ids.push(qKeyOf(q))));
       mix.rounds.push({
         name: roundNames[r],
         themes: part.map(({ t }) => ({

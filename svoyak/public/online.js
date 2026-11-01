@@ -128,8 +128,8 @@ const SvoyakOnline = (() => {
     let packs = [
       { file: '@random', title: 'Случайный микс' },
       { file: '@random18', title: 'Случайный микс 18+' },
-      ...['ogon18', 'rofl', 'rofl2', 'tusovka', 'miks', 'legkiy', 'media', 'svoi', 'classic'].map((f) => ({ file: f + '.json', title: f, mix: true })),
-      { file: 'finals.json', title: 'finals', mix: true, hidden: true },
+      ...['novyi1', 'novyi2', 'novyi18'].map((f) => ({ file: f + '.json', title: f, mix: true })),
+      { file: 'finals2.json', title: 'finals', mix: true, hidden: true },
     ];
     let engine = null;
     let links = [];
