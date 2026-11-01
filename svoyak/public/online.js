@@ -187,6 +187,17 @@ const SvoyakOnline = (() => {
         if (!cache.has(vk)) cache.set(vk, c.role === 'host' ? hostView() : engine.view(c.role, c.id));
         sendTo(c, { t: 'state', hs: session, seq, v: cache.get(vk) });
       }
+      // картинка из галереи для текущего вопроса — отдельным сообщением, каждому по разу
+      const st = engine.state;
+      Object.entries(st.images || {}).forEach(([id, data]) => S.cacheImage(id, data));
+      const img = st.q && String(st.q.image || '').startsWith('local:') ? st.q.image.slice(6) : null;
+      if (img && st.images && st.images[img]) {
+        for (const c of conns.values()) {
+          if (c.role === 'host' || c.imgs.has(img)) continue;
+          c.imgs.add(img);
+          sendTo(c, { t: 'img', id: img, data: st.images[img] });
+        }
+      }
       onState(hostView());
       try { store('svoyak.online.game', JSON.stringify(engine.state)); } catch { /* память переполнена */ }
     }
@@ -213,7 +224,7 @@ const SvoyakOnline = (() => {
         if (d.role === 'host' && d.key !== engine.pin) { reply({ t: 'denied', error: 'Неверный PIN' }); return; }
         const id = d.role === 'player' ? String(d.id || '') : '';
         if (d.role === 'player' && !/^[A-Za-z0-9_-]{6,40}$/.test(id)) return;
-        conns.set(k, { bi, cid, role: d.role, id, seen: Date.now() });
+        conns.set(k, { bi, cid, role: d.role, id, seen: Date.now(), imgs: new Set() });
         broadcast();
         return;
       }
@@ -330,6 +341,8 @@ const SvoyakOnline = (() => {
             pending.delete(msg.rid);
             clearTimeout(p.timer);
             if (msg.error) p.reject(new Error(msg.error)); else p.resolve(msg);
+          } else if (msg.t === 'img') {
+            if (typeof msg.data === 'string' && msg.data.startsWith('data:image/')) S.cacheImage(msg.id, msg.data);
           } else if (onMessage) onMessage(msg);
         },
       });

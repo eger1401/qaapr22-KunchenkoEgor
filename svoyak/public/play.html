@@ -107,6 +107,7 @@ $('#joinForm').addEventListener('submit', async (e) => {
 $('#renameBtn').addEventListener('click', showJoin);
 
 let autoJoinTried = false;
+S.onImage(() => { lastKey = ''; render(); });
 function net(on, msg) {
   $('#conn').classList.toggle('on', on);
   const m = $('#netmsg');

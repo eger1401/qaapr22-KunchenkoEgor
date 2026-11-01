@@ -45,6 +45,8 @@
 const $ = (s) => document.querySelector(s);
 const e = S.esc;
 let lastKey = '';
+let lastSt = null;
+S.onImage(() => { if (lastSt) { lastKey = ''; $('#stage').innerHTML = stage(lastSt); } });
 let prevAnswering = null;
 const audio = new Audio();
 let lastMediaNonce; // undefined до первого состояния
@@ -62,7 +64,7 @@ function syncAudio(st) {
   if (st.q && st.q.video && m && !first) {
     if (!m.playing) { S.stopVideo(); return; }
     $('#videoWrap').hidden = false;
-    S.playVideo($('#videoBox'), st.q.video, m.part);
+    S.playVideo($('#videoBox'), st.q.video, m.part, m.len, m.from);
     return;
   }
   if (!st.q || !(st.q.audio || st.q.melody) || !m || !m.playing || first) { audio.pause(); S.stopMelody(); return; }
@@ -84,6 +86,7 @@ if (S.ONLINE && !S.room()) {
     location.href = u.href;
   });
 } else S.connect({ role: 'screen' }, (st) => {
+  lastSt = st;
   syncAudio(st);
   if (!(st.q && st.q.video && (st.phase === 'question' || st.phase === 'reveal')) && !$('#videoWrap').hidden) { S.stopVideo(); $('#videoWrap').hidden = true; }
   if (st.phase !== 'question' && st.phase !== 'reveal') { if (!audio.paused) audio.pause(); S.stopMelody(); }

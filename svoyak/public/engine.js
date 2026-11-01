@@ -178,6 +178,16 @@
     let pendingBuzz = null; // нажатия, которые ещё собираются
     const changed = () => { if (hooks.changed) hooks.changed(); };
 
+    // удалить картинки, на которые больше не ссылается ни одна своя тема (свежие — не трогаем)
+    function cleanImages() {
+      if (!game.images) return;
+      const used = new Set();
+      (game.custom || []).forEach((t) => t.questions.forEach((q) => { if (String(q.image || '').startsWith('local:')) used.add(q.image.slice(6)); }));
+      const fresh = new Set((game.imagesPending || []).filter((p) => Date.now() - p.at < 10 * 60000).map((p) => p.id));
+      game.imagesPending = (game.imagesPending || []).filter((p) => fresh.has(p.id));
+      for (const id of Object.keys(game.images)) if (!used.has(id) && !fresh.has(id)) delete game.images[id];
+    }
+
     function resolveBuzz() {
       const pb = pendingBuzz;
       pendingBuzz = null;
@@ -352,9 +362,9 @@
         game.buzzOpen = true;
         game.buzzOpenedAt = Date.now();
       },
-      playMedia({ part } = {}) {
+      playMedia({ part, len, from } = {}) {
         if (!game.q || !(game.q.audio || game.q.melody || game.q.video)) return;
-        game.media = { nonce: Date.now(), playing: true, part: part === 'rest' ? 'rest' : 'clip' };
+        game.media = { nonce: Date.now(), playing: true, part: part === 'rest' ? 'rest' : 'clip', len: Math.max(0, Number(len) || 0), from: Math.max(0, Number(from) || 0) };
       },
       stopMedia() {
         game.media = { nonce: Date.now(), playing: false };
@@ -495,7 +505,9 @@
         if (!name) throw new Error('Введите название темы');
         const questions = ((theme && theme.questions) || []).map((q) => {
           const out = { text: String(q.text || '').trim().slice(0, 300), answer: String(q.answer || '').trim().slice(0, 200) };
-          if (/^https?:\/\/\S+$/i.test(String(q.image || '').trim())) out.image = String(q.image).trim().slice(0, 500);
+          const img = String(q.image || '').trim();
+          if (/^https?:\/\/\S+$/i.test(img)) out.image = img.slice(0, 500);
+          else if (/^local:[a-z0-9]{6,20}$/.test(img) && game.images && game.images[img.slice(6)]) out.image = img;
           if (q.video && /^[A-Za-z0-9_-]{11}$/.test(String(q.video.id || ''))) {
             out.video = { id: q.video.id, start: Math.max(0, Number(q.video.start) || 0), end: Math.max(0, Number(q.video.end) || 0) };
           }
@@ -503,12 +515,25 @@
         }).filter((q) => (q.text || q.image || q.video) && q.answer).slice(0, 5);
         if (!questions.length) throw new Error('Нужен хотя бы один вопрос с ответом');
         game.custom = (game.custom || []).filter((t) => t.name !== name).concat({ name, questions });
+        cleanImages();
         // заново сохранённая тема снова считается несыгранной
         game.themeHistory = (game.themeHistory || []).filter((h) => h !== 'custom:' + name);
         log(`Своя тема «${name}» сохранена`);
       },
       customDelete({ name }) {
         game.custom = (game.custom || []).filter((t) => t.name !== name);
+        cleanImages();
+      },
+      // картинка из галереи ведущего (уже сжатая JPEG data URL); возвращает id
+      imageAdd({ data }) {
+        const d = String(data || '');
+        if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(d)) throw new Error('Это не картинка');
+        if (d.length > 400000) throw new Error('Картинка слишком большая');
+        game.images = game.images || {};
+        const id = Math.random().toString(36).slice(2, 12);
+        game.images[id] = d;
+        game.imagesPending = (game.imagesPending || []).concat({ id, at: Date.now() });
+        return { id: 'local:' + id };
       },
       finalQuestion() {
         if (game.phase !== 'final-bets') return;
@@ -534,11 +559,12 @@
       newGame() {
         const keepPlayers = game.order.map((id) => ({ id, name: game.players[id].name }));
         // новые темы соберутся при «Начать игру»
-        const keep = { fixed: game.fixed, history: game.themeHistory || [], custom: game.custom || [] };
+        const keep = { fixed: game.fixed, history: game.themeHistory || [], custom: game.custom || [], images: game.images || {} };
         game = freshGame(game.pack, game.pin);
         game.fixed = keep.fixed;
         game.themeHistory = keep.history;
         game.custom = keep.custom;
+        game.images = keep.images;
         keepPlayers.forEach(({ id, name: n }) => { game.players[id] = { name: n, score: 0 }; game.order.push(id); });
         log('Новая игра');
       },
@@ -550,7 +576,9 @@
         const keepPlayers = game.order.map((id) => ({ id, name: game.players[id].name }));
         const history = game.themeHistory || [];
         const custom = game.custom || [];
+        const images = game.images || {};
         game = freshGame(p, game.pin);
+        game.images = images;
         game.themeHistory = history;
         game.custom = custom;
         game.fixed = !p.mix; // выбран конкретный пакет — темы не перемешиваем
@@ -749,6 +777,7 @@
       handle,
       view,
       get state() { return game; },
+      image(id) { return game.images ? game.images[id] : undefined; },
       get pin() { return game.pin; },
       set pin(p) { game.pin = p; },
     };

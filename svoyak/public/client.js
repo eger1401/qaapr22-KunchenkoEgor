@@ -190,15 +190,26 @@ const S = (() => {
   }
   requestAnimationFrame(tickTimers);
 
+  // картинки из галереи ведущего: приходят отдельным сообщением и лежат в памяти
+  const imgCache = new Map();
+  const imgListeners = [];
+  function cacheImage(id, data) {
+    if (!id || !data || imgCache.get(id) === data) return;
+    imgCache.set(id, data);
+    imgListeners.forEach((f) => { try { f(id); } catch { /* не важно */ } });
+  }
+  const onImage = (f) => imgListeners.push(f);
+
   function mediaUrl(src) {
     if (!src) return '';
+    if (String(src).startsWith('local:')) return ONLINE ? imgCache.get(src.slice(6)) || '' : '/img/' + src.slice(6);
     if (/^(https?:)?\/\//.test(src) || src.startsWith('/')) return src;
     return (ONLINE ? '../media/' : '/media/') + src.split('/').map(encodeURIComponent).join('/');
   }
   function imageHtml(q) {
     if (!q) return '';
     return (q.big ? `<div class="q-big">${esc(q.big)}</div>` : '')
-      + (q.image ? `<img class="q-img" src="${esc(mediaUrl(q.image))}" alt="">` : '');
+      + (q.image ? (mediaUrl(q.image) ? `<img class="q-img" src="${esc(mediaUrl(q.image))}" alt="">` : '<p class="muted center">Картинка загружается…</p>') : '');
   }
 
   // мелодия нотами: "E5/1 B4/.5 -/.5 …" (нота/длительность в долях, "-" — пауза)
@@ -266,7 +277,7 @@ const S = (() => {
     return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
   }
 
-  const VERSION = '22 · синхрон кнопок, видео, мои вопросы';
+  const VERSION = '23 · мемы из галереи, музыка по секундам';
   // сетка тем финала; clickable — можно убирать
   function finalGridHtml(fs, clickable) {
     return '<div class="fgrid">' + fs.options.map((o) => (clickable && !o.removed
@@ -292,10 +303,15 @@ const S = (() => {
     }
     return ytReady;
   }
-  async function playVideo(el, video, part) {
-    const opts = part === 'rest'
-      ? { videoId: video.id, startSeconds: video.end || video.start || 0 }
-      : { videoId: video.id, startSeconds: video.start || 0, ...(video.end ? { endSeconds: video.end } : {}) };
+  // part: 'clip' — с начала (len секунд или до end), 'rest' — продолжить с from
+  async function playVideo(el, video, part, len, from) {
+    const start = video.start || 0;
+    let opts;
+    if (part === 'rest') opts = { videoId: video.id, startSeconds: from || video.end || start };
+    else {
+      const end = len ? start + Number(len) : video.end;
+      opts = { videoId: video.id, startSeconds: start, ...(end ? { endSeconds: end } : {}) };
+    }
     if (ytPlayer && ytHost === el && ytPlayer.loadVideoById) { ytPlayer.loadVideoById(opts); return; }
     await loadYT();
     if (!window.YT || !window.YT.Player) { toast('YouTube не загрузился'); return; }
@@ -319,5 +335,5 @@ const S = (() => {
   // "1:23" или "83" -> секунды
   const toSec = (v) => { const p = String(v || '').trim().split(':').map(Number); return p.some(isNaN) ? 0 : p.reduce((a, x) => a * 60 + x, 0); };
 
-  return { isCard, playVideo, stopVideo, parseYouTube, toSec, finalGridHtml, VERSION, playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
+  return { cacheImage, onImage, isCard, playVideo, stopVideo, parseYouTube, toSec, finalGridHtml, VERSION, playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

@@ -189,6 +189,15 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // картинки, которые ведущий добавил из галереи
+  if (url.pathname.startsWith('/img/')) {
+    const data = engine.image(url.pathname.slice(5));
+    const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(data || '');
+    if (!m) { res.writeHead(404); return res.end(); }
+    res.writeHead(200, { 'Content-Type': m[1], 'Cache-Control': 'max-age=3600' });
+    return res.end(Buffer.from(m[2], 'base64'));
+  }
+
   if (url.pathname === '/cheat.json') {
     if (url.searchParams.get('key') !== engine.pin) return json(res, 403, { error: 'Неверный PIN' });
     return json(res, 200, engine.state.pack);
