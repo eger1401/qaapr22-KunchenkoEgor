@@ -251,7 +251,7 @@ const S = (() => {
 
   // особые вопросы: название и правило
   const SPECIAL = {
-    cat: { label: 'Кот в мешке', rule: 'Кнопки нет: выбравший передаёт вопрос другому игроку.' },
+    cat: { label: 'Кот в мешке', rule: 'Выбравший передаёт вопрос другому игроку. Сам вопрос появится после передачи.' },
     norisk: { label: 'Без риска', rule: 'Кто первым нажмёт — отвечает. Верно — вдвое больше, ошибка без минуса.' },
     auction: { label: 'Ставка', rule: 'Кто первым нажмёт — ставит от цены вопроса до всего счёта и отвечает.' },
     plusminus: { label: 'Плюс на минус', rule: 'Кто первым нажмёт — у того счёт меняет знак: +300 станет −300, а −300 станет +300.' },
@@ -264,7 +264,7 @@ const S = (() => {
     return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
   }
 
-  const VERSION = '19 · 18+ Огонь';
+  const VERSION = '20 · кот в мешке скрыт до передачи';
   // сетка тем финала; clickable — можно убирать
   function finalGridHtml(fs, clickable) {
     return '<div class="fgrid">' + fs.options.map((o) => (clickable && !o.removed

@@ -564,7 +564,15 @@
         // бонус скрыт от игроков, пока кто-нибудь не нажмёт кнопку (или ведущий не передаст вопрос)
         const opened = !!game.answering || game.phase === 'reveal' || game.wrong.length > 0;
         v.q.bonusOpened = opened;
-        if (!isHost && game.q.type !== 'normal' && !opened) {
+        // кот в мешке: все знают, что вопрос передают, но сам вопрос виден только после передачи
+        const catHidden = game.q.type === 'cat' && !game.answering && game.phase === 'question';
+        v.q.catHidden = catHidden;
+        if (!isHost && catHidden) {
+          v.q.text = 'Вопрос появится, когда его передадут.';
+          delete v.q.image;
+          delete v.q.big;
+        }
+        if (!isHost && game.q.type !== 'normal' && game.q.type !== 'cat' && !opened) {
           v.q.type = 'bonus';
           if (game.q.type === 'gift' || game.q.type === 'plusminus') v.q.text = 'Бонус! Жми кнопку быстрее всех.';
           delete v.q.win;

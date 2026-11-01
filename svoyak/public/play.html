@@ -199,7 +199,7 @@ function mainHtml(me, f, myFinal) {
       if (q.type === 'cat') {
         body += st.answering
           ? `<div class="big-msg">${st.answering === id ? 'Отвечаете вы!' : 'Отвечает ' + e(S.nameOf(st, st.answering))}</div>`
-          : '<p class="muted center">Ведущий выбирает, кто будет отвечать</p>';
+          : `<p class="center">${st.chooser === id ? '<b>Вы выбирали — скажите ведущему, кому отдаёте вопрос.</b>' : 'Ждём, кому ' + e(S.nameOf(st, st.chooser)) + ' передаст вопрос'}</p>`;
         return head + body;
       }
       let cls = '', label = 'Жди…';
