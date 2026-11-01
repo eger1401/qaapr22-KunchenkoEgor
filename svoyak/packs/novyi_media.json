@@ -1,0 +1,305 @@
+{
+  "title": "Новый сезон: картинки и мемы",
+  "rounds": [
+    {
+      "name": "Первый раунд",
+      "themes": [
+        {
+          "name": "Флаги: новые",
+          "questions": [
+            {
+              "price": 100,
+              "text": "Чей это флаг?",
+              "answer": "Франция",
+              "image": "flags/france.svg"
+            },
+            {
+              "price": 200,
+              "text": "Чей это флаг?",
+              "answer": "Австрия",
+              "image": "flags/austria.svg"
+            },
+            {
+              "price": 300,
+              "text": "Чей это флаг?",
+              "answer": "Финляндия",
+              "image": "flags/finland.svg"
+            },
+            {
+              "price": 400,
+              "text": "Чей это флаг?",
+              "answer": "Дания",
+              "image": "flags/denmark.svg"
+            },
+            {
+              "price": 500,
+              "text": "Чей это флаг?",
+              "answer": "Эстония",
+              "image": "flags/estonia.svg"
+            }
+          ]
+        },
+        {
+          "name": "Флаги: ещё",
+          "questions": [
+            {
+              "price": 100,
+              "text": "Чей это флаг?",
+              "answer": "Венгрия",
+              "image": "flags/hungary.svg"
+            },
+            {
+              "price": 200,
+              "text": "Чей это флаг?",
+              "answer": "Румыния",
+              "image": "flags/romania.svg"
+            },
+            {
+              "price": 300,
+              "text": "Чей это флаг?",
+              "answer": "Литва",
+              "image": "flags/lithuania.svg"
+            },
+            {
+              "price": 400,
+              "text": "Чей это флаг?",
+              "answer": "Норвегия",
+              "image": "flags/norway.svg"
+            },
+            {
+              "price": 500,
+              "text": "Чей это флаг?",
+              "answer": "Чехия",
+              "image": "flags/czechia.svg"
+            }
+          ]
+        },
+        {
+          "name": "Страна по контуру: новые",
+          "questions": [
+            {
+              "price": 100,
+              "text": "Какая это страна?",
+              "answer": "Франция",
+              "image": "maps/country-france.svg"
+            },
+            {
+              "price": 200,
+              "text": "Какая это страна?",
+              "answer": "Испания",
+              "image": "maps/country-spain.svg"
+            },
+            {
+              "price": 300,
+              "text": "Какая это страна?",
+              "answer": "Индия",
+              "image": "maps/country-india.svg"
+            },
+            {
+              "price": 400,
+              "text": "Какая это страна?",
+              "answer": "Египет",
+              "image": "maps/country-egypt.svg"
+            },
+            {
+              "price": 500,
+              "text": "Какая это страна?",
+              "answer": "Мексика",
+              "image": "maps/country-mexico.svg"
+            }
+          ]
+        },
+        {
+          "name": "Город Украины на карте: новые",
+          "questions": [
+            {
+              "price": 100,
+              "text": "Какой город отмечен на карте?",
+              "answer": "Днепр",
+              "image": "maps/ua-dnipro.svg"
+            },
+            {
+              "price": 200,
+              "text": "Какой город отмечен на карте?",
+              "answer": "Запорожье",
+              "image": "maps/ua-zaporizhzhia.svg"
+            },
+            {
+              "price": 300,
+              "text": "Какой город на самом западе отмечен на карте?",
+              "answer": "Ужгород",
+              "image": "maps/ua-uzhhorod.svg"
+            },
+            {
+              "price": 400,
+              "text": "Какой город отмечен на карте?",
+              "answer": "Чернигов",
+              "image": "maps/ua-chernihiv.svg"
+            },
+            {
+              "price": 500,
+              "text": "Какой город отмечен на карте?",
+              "answer": "Винница",
+              "image": "maps/ua-vinnytsia.svg"
+            }
+          ]
+        },
+        {
+          "name": "Фильм по эмодзи: новые",
+          "questions": [
+            {
+              "price": 100,
+              "text": "Какой это мультфильм?",
+              "answer": "«Кунг-фу Панда»",
+              "big": "🐼🥋🥟"
+            },
+            {
+              "price": 200,
+              "text": "Какой это фильм?",
+              "answer": "«Инопланетянин» (E.T.)",
+              "big": "👽📞🏠🚲"
+            },
+            {
+              "price": 300,
+              "text": "Какой это фильм?",
+              "answer": "«Челюсти»",
+              "big": "🦈🏖️😱"
+            },
+            {
+              "price": 400,
+              "text": "Какой это фильм?",
+              "answer": "«Пираты Карибского моря»",
+              "big": "🏴‍☠️⚓💀🍾"
+            },
+            {
+              "price": 500,
+              "text": "Какой это фильм?",
+              "answer": "«Марсианин»",
+              "big": "👨‍🚀🔴🥔"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Второй раунд",
+      "themes": [
+        {
+          "name": "Мемы СНГ: закончи фразу",
+          "questions": [
+            {
+              "price": 200,
+              "text": "«Денег нет, но вы …»",
+              "answer": "«…держитесь» (Медведев)"
+            },
+            {
+              "price": 400,
+              "text": "«Хотели как лучше, а получилось …»",
+              "answer": "«…как всегда» (Черномырдин)"
+            },
+            {
+              "price": 600,
+              "text": "«Ты кто такой? Давай, …»",
+              "answer": "«…до свидания!»"
+            },
+            {
+              "price": 800,
+              "text": "«Это фиаско, …»",
+              "answer": "«…братан»"
+            },
+            {
+              "price": 1000,
+              "text": "«Я в своём познании настолько …»",
+              "answer": "«…преисполнился»"
+            }
+          ]
+        },
+        {
+          "name": "Мемы СНГ: закончи фразу 2",
+          "questions": [
+            {
+              "price": 200,
+              "text": "«Вот это …»",
+              "answer": "«…поворот!»"
+            },
+            {
+              "price": 400,
+              "text": "«Всё идёт по …»",
+              "answer": "«…плану» (Летов)"
+            },
+            {
+              "price": 600,
+              "text": "«Никогда такого не было, и вот …»",
+              "answer": "«…опять» (Черномырдин)"
+            },
+            {
+              "price": 800,
+              "text": "«Прекрасное далёко, не будь ко мне …»",
+              "answer": "«…жестоко»"
+            },
+            {
+              "price": 1000,
+              "text": "«Ну что, сынку, помогли тебе твои …»",
+              "answer": "«…ляхи?» (Тарас Бульба)"
+            }
+          ]
+        },
+        {
+          "name": "Угадай песню по клипу",
+          "questions": [
+            {
+              "price": 200,
+              "text": "Какая это песня? Ведущий, нажмите «▶ Видео».",
+              "answer": "PSY — «Gangnam Style»",
+              "video": {
+                "id": "9bZkp7q19f0",
+                "start": 60,
+                "end": 70
+              }
+            },
+            {
+              "price": 400,
+              "text": "Какая это песня? Ведущий, нажмите «▶ Видео».",
+              "answer": "Luis Fonsi — «Despacito»",
+              "video": {
+                "id": "kJQP7kiw5Fk",
+                "start": 60,
+                "end": 70
+              }
+            },
+            {
+              "price": 600,
+              "text": "Какая это песня? Ведущий, нажмите «▶ Видео».",
+              "answer": "Ed Sheeran — «Shape of You»",
+              "video": {
+                "id": "JGwWNGJdvx8",
+                "start": 60,
+                "end": 70
+              }
+            },
+            {
+              "price": 800,
+              "text": "Какая это песня? Ведущий, нажмите «▶ Видео».",
+              "answer": "Mark Ronson ft. Bruno Mars — «Uptown Funk»",
+              "video": {
+                "id": "OPf0YbXqDm0",
+                "start": 60,
+                "end": 70
+              }
+            },
+            {
+              "price": 1000,
+              "text": "Что за песня? Подсказка: этой песней «рикроллят».",
+              "answer": "Rick Astley — «Never Gonna Give You Up»",
+              "video": {
+                "id": "dQw4w9WgXcQ",
+                "start": 43,
+                "end": 52
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

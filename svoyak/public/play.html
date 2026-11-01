@@ -67,6 +67,9 @@ let lastKey = '';
 let lockUntil = 0;
 let joined = false;
 let prevAnswering = null;
+let openKey = null;
+let openAt = 0;
+let pressed = false;
 
 const $ = (s) => document.querySelector(s);
 
@@ -149,10 +152,13 @@ function render() {
   // подсказка вибрацией, когда отвечаем мы
   if (st.answering === id && prevAnswering !== id) { S.vibrate([80, 40, 80]); S.beep(990, 220); }
   prevAnswering = st.answering;
+  // момент, когда кнопка загорелась именно у этого игрока — от него считаем время реакции
+  if (st.phase === 'question' && st.buzzOpen && st.buzzOpenedAt !== openKey) { openKey = st.buzzOpenedAt; openAt = performance.now(); pressed = false; }
+  if (!st.buzzOpen || st.answering) pressed = false;
 
   const f = st.final;
   const myFinal = f && f.players.find((p) => p.id === id);
-  const key = JSON.stringify([st.finalSelect, st.phase, st.board.index, st.board.themes.map((t) => t.cells.map((c) => c.used)), st.q, st.buzzOpen, st.buzzOpenedAt,
+  const key = JSON.stringify([pressed, st.finalSelect, st.phase, st.board.index, st.board.themes.map((t) => t.cells.map((c) => c.used)), st.q, st.buzzOpen, st.buzzOpenedAt,
     st.answering, st.wrong, st.chooser, f && f.text, f && f.answer, myFinal && [myFinal.hasBet, myFinal.hasAnswer, myFinal.bet], f && f.players.map((p) => p.ok),
     st.phase === 'end' || st.phase === 'lobby' ? st.players : 0]);
   if (key === lastKey) return;
@@ -179,9 +185,9 @@ function mainHtml(me, f, myFinal) {
       const q = st.q;
       let head = `<div class="q-head"><span class="label">${e(q.theme)}</span><span class="price">${q.price}</span></div>`;
       head += S.specialHtml(q);
-      let body = `<div class="q-text">${e(q.text)}</div>${S.imageHtml(q)}`;
+      let body = `<div class="q-text">${e(q.text)}</div>${S.imageHtml(q)}${q.video ? '<p class="center" style="margin:0"><b>🎬 Смотрите видео на экране</b></p>' : ''}`;
       if (st.phase === 'reveal') {
-        return head + body + `<div class="answer">${q.type === 'gift' || q.type === 'plusminus' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>`;
+        return head + body + `<div class="answer">${S.isCard(q.type) ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>`;
       }
       if (q.type === 'auction' && !q.stake) {
         if (q.staker === id) {
@@ -206,6 +212,7 @@ function mainHtml(me, f, myFinal) {
       if (st.answering === id) { cls = 'mine'; label = q.type === 'gift' ? 'Просите<br>баллы!' : 'Вы отвечаете!'; }
       else if (st.answering) { cls = 'out'; label = 'Отвечает<br>' + e(S.nameOf(st, st.answering)); }
       else if (st.wrong.includes(id)) { cls = 'out'; label = 'Вы уже<br>ответили'; }
+      else if (st.buzzOpen && pressed) { cls = 'mine'; label = 'Нажато!<br><small>ждём остальных</small>'; }
       else if (st.buzzOpen) { cls = 'open'; label = 'ЖМИ!'; }
       const mustAnswer = !st.answering && !st.wrong.includes(id) && st.buzzOpen
         ? '<p class="center" style="margin:0;font-weight:600">Отвечают все — жми и отвечай!</p>' : '';
@@ -227,10 +234,11 @@ function mainHtml(me, f, myFinal) {
       return `<div class="big-msg">Финал: ${e(f.theme)}</div>` + betForm(me);
     case 'final-question':
       if (!myFinal) return `<span class="label">Финал · ${e(f.theme)}</span><div class="q-text">${e(f.text)}</div><p class="muted">Вы не участвуете в финале</p>`;
+      if (myFinal.hasAnswer) return `<span class="label">Финал · ${e(f.theme)} · ставка ${myFinal.bet ?? '—'}</span><div class="q-text">${e(f.text)}</div>
+        <div class="answer">Ваш ответ принят: <b>${e(myFinal.answer)}</b></div><p class="muted center">Изменить ответ нельзя. Ждём остальных.</p>`;
       return `<span class="label">Финал · ${e(f.theme)} · ставка ${myFinal.bet ?? '—'}</span><div class="q-text">${e(f.text)}</div>
-        ${myFinal.hasAnswer ? `<p>Ваш ответ: <b>${e(myFinal.answer)}</b></p>` : ''}
         <form id="answerForm" class="row">
-          <label class="label" for="answerInput" style="flex-basis:100%">${myFinal.hasAnswer ? 'Изменить ответ' : 'Ваш ответ'}</label>
+          <label class="label" for="answerInput" style="flex-basis:100%">Ваш ответ — отправить можно один раз</label>
           <input id="answerInput" type="text" maxlength="200" autocomplete="off" required>
           <button class="btn gold wide" type="submit">Отправить</button>
         </form>`;
@@ -295,7 +303,9 @@ async function buzz(e) {
   if (Date.now() < lockUntil) { S.vibrate(30); return; }
   const btn = e.currentTarget;
   try {
-    const r = await S.post({ role: 'player', id, type: 'buzz' });
+    const rt = Math.round(performance.now() - openAt);
+    if (st && st.buzzOpen) { pressed = true; btn.classList.add('mine'); btn.innerHTML = 'Нажато!'; }
+    const r = await S.post({ role: 'player', id, type: 'buzz', rt });
     if (r.early || r.locked) {
       lockUntil = Date.now() + (r.lockMs || 1000);
       S.vibrate(200);

@@ -37,6 +37,7 @@
 <body>
   <div class="top"><h1>Свояк</h1><span id="round" class="muted"></span><span id="conn" class="dot"></span></div>
   <div id="stage"></div>
+  <div id="videoWrap" hidden style="width:min(100%, 110vh);margin:0 auto"><div id="videoBox" class="video-box"></div></div>
   <div id="bar" class="bar"></div>
   <button id="sound" class="btn small ghost" type="button">Включить звук</button>
 <script src="client.js"></script>
@@ -58,6 +59,12 @@ function syncAudio(st) {
   if (nonce === lastMediaNonce) return;
   const first = lastMediaNonce === undefined;
   lastMediaNonce = nonce;
+  if (st.q && st.q.video && m && !first) {
+    if (!m.playing) { S.stopVideo(); return; }
+    $('#videoWrap').hidden = false;
+    S.playVideo($('#videoBox'), st.q.video, m.part);
+    return;
+  }
   if (!st.q || !(st.q.audio || st.q.melody) || !m || !m.playing || first) { audio.pause(); S.stopMelody(); return; }
   if (st.q.melody) { S.playMelody(st.q.melody, st.q.bpm); return; }
   audio.src = S.mediaUrl(st.q.audio);
@@ -78,6 +85,7 @@ if (S.ONLINE && !S.room()) {
   });
 } else S.connect({ role: 'screen' }, (st) => {
   syncAudio(st);
+  if (!(st.q && st.q.video && (st.phase === 'question' || st.phase === 'reveal')) && !$('#videoWrap').hidden) { S.stopVideo(); $('#videoWrap').hidden = true; }
   if (st.phase !== 'question' && st.phase !== 'reveal') { if (!audio.paused) audio.pause(); S.stopMelody(); }
   $('#round').textContent = st.phase === 'lobby' ? '' : st.phase.startsWith('final') ? 'Финал' : st.board.name;
   $('#bar').innerHTML = st.players.map((p) => `<div class="pl${p.id === st.answering ? ' answering' : ''}${p.id === st.chooser && st.phase === 'board' ? ' chooser' : ''}">

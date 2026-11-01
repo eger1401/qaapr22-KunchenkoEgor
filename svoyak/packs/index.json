@@ -23,6 +23,11 @@
     "mix": true
   },
   {
+    "file": "novyi_media.json",
+    "title": "Новый сезон: картинки и мемы",
+    "mix": true
+  },
+  {
     "file": "finals2.json",
     "title": "Финалы: новый сезон",
     "mix": true,

@@ -257,6 +257,8 @@ const S = (() => {
     plusminus: { label: 'Плюс на минус', rule: 'Кто первым нажмёт — у того счёт меняет знак: +300 станет −300, а −300 станет +300.' },
     bonus: { label: 'Бонус', rule: 'Какой — узнаете, когда кто-то нажмёт кнопку.' },
     gift: { label: 'Попроси баллы', rule: 'Кто первым нажмёт — просит у ведущего баллы. Сколько дать, решает ведущий.' },
+    plus: { label: 'Быстрые баллы', rule: 'Кто первым нажмёт — получает баллы.' },
+    luck: { label: 'Удача', rule: 'Выбравший получает баллы просто так.' },
     approx: { label: 'Отвечай приблизительно', rule: 'Кто первым нажмёт — отвечает. Засчитывается и примерный ответ.' },
   };
   function specialHtml(q) {
@@ -264,7 +266,7 @@ const S = (() => {
     return s ? `<div class="special"><span class="tag">${s.label}</span><span>${s.rule}</span></div>` : '';
   }
 
-  const VERSION = '21 · новый сезон: 36 новых тем';
+  const VERSION = '22 · синхрон кнопок, видео, мои вопросы';
   // сетка тем финала; clickable — можно убирать
   function finalGridHtml(fs, clickable) {
     return '<div class="fgrid">' + fs.options.map((o) => (clickable && !o.removed
@@ -272,5 +274,50 @@ const S = (() => {
       : `<div class="fopt${o.removed ? ' removed' : ''}">${esc(o.theme)}</div>`)).join('') + '</div>';
   }
 
-  return { finalGridHtml, VERSION, playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
+  // карточки-бонусы вместо вопроса (у них нет «Ответ:»)
+  const isCard = (type) => ['gift', 'plusminus', 'plus', 'luck'].includes(type);
+
+  // ---- клипы YouTube: играют с секунды start до end, потом можно досмотреть ----
+  let ytReady = null;
+  let ytPlayer = null;
+  let ytHost = null;
+  function loadYT() {
+    if (!ytReady) {
+      ytReady = new Promise((resolve) => {
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(); };
+        loadScript('https://www.youtube.com/iframe_api').catch(() => resolve());
+        setTimeout(resolve, 10000);
+      });
+    }
+    return ytReady;
+  }
+  async function playVideo(el, video, part) {
+    const opts = part === 'rest'
+      ? { videoId: video.id, startSeconds: video.end || video.start || 0 }
+      : { videoId: video.id, startSeconds: video.start || 0, ...(video.end ? { endSeconds: video.end } : {}) };
+    if (ytPlayer && ytHost === el && ytPlayer.loadVideoById) { ytPlayer.loadVideoById(opts); return; }
+    await loadYT();
+    if (!window.YT || !window.YT.Player) { toast('YouTube не загрузился'); return; }
+    el.innerHTML = '<div id="ytPlayerBox"></div>';
+    ytHost = el;
+    ytPlayer = new window.YT.Player('ytPlayerBox', {
+      width: '100%', height: '100%',
+      playerVars: { playsinline: 1, rel: 0, controls: 1 },
+      events: { onReady: (e) => e.target.loadVideoById(opts) },
+    });
+  }
+  function stopVideo() { try { if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo(); } catch { /* нет плеера */ } }
+  // ссылка YouTube -> { id, start }
+  function parseYouTube(url) {
+    const s = String(url || '').trim();
+    const m = /(?:youtu\.be\/|[?&]v=|shorts\/|embed\/|live\/)([A-Za-z0-9_-]{11})/.exec(s) || /^([A-Za-z0-9_-]{11})$/.exec(s);
+    if (!m) return null;
+    const t = /[?&#]t=(\d+)/.exec(s);
+    return { id: m[1], start: t ? Number(t[1]) : 0 };
+  }
+  // "1:23" или "83" -> секунды
+  const toSec = (v) => { const p = String(v || '').trim().split(':').map(Number); return p.some(isNaN) ? 0 : p.reduce((a, x) => a * 60 + x, 0); };
+
+  return { isCard, playVideo, stopVideo, parseYouTube, toSec, finalGridHtml, VERSION, playMelody, stopMelody, SPECIAL, specialHtml, ONLINE, room, qrSvg, transport: () => transport, mediaUrl, imageHtml, connect, post, serverNow, esc, store, playerId, beep, vibrate, toast, nameOf, boardHtml, scoresHtml, ANSWER_MS };
 })();

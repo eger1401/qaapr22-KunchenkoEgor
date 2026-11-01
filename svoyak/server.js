@@ -80,6 +80,7 @@ const engine = createEngine({
     urls: () => lanUrls(),
     packs: () => listPacks(),
     loadPackFile: (file) => packByFile(file),
+    changed: () => broadcast(),
     mixPacks: () => mixPacks(),
   },
 });

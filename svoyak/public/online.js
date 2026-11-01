@@ -124,11 +124,13 @@ const SvoyakOnline = (() => {
     store('svoyak.online.code', code);
 
     const conns = new Map(); // "сервер|cid" -> { bi, cid, role, id, seen }
+    const acts = new Map(); // "cid|rid" -> выполненное действие (защита от дублей)
+    setInterval(() => { const now = Date.now(); for (const [k, a] of acts) if (now - a.at > 60000) acts.delete(k); }, 30000);
     // запасной список, если packs/index.json не загрузится
     let packs = [
       { file: '@random', title: 'Случайный микс' },
       { file: '@random18', title: 'Случайный микс 18+' },
-      ...['novyi1', 'novyi2', 'novyi18'].map((f) => ({ file: f + '.json', title: f, mix: true })),
+      ...['novyi1', 'novyi2', 'novyi_media', 'novyi18'].map((f) => ({ file: f + '.json', title: f, mix: true })),
       { file: 'finals2.json', title: 'finals', mix: true, hidden: true },
     ];
     let engine = null;
@@ -143,6 +145,7 @@ const SvoyakOnline = (() => {
     };
 
     const hooks = {
+      changed: () => broadcast(),
       mixPacks: () => mixPacks,
       isOnline: (pid) => [...conns.values()].some((c) => c.role === 'player' && c.id === pid),
       screens: () => new Set([...conns.values()].filter((c) => c.role === 'screen').map((c) => c.cid)).size,
@@ -172,9 +175,18 @@ const SvoyakOnline = (() => {
       if (l) l.pub(downTopic(code, c.cid), msg);
     }
 
+    // одно и то же состояние уходит через все серверы, где есть игрок; телефон берёт самое свежее (seq)
+    const session = rnd(6);
+    let seq = 0;
     function broadcast() {
       if (!engine) return;
-      for (const c of conns.values()) sendTo(c, { t: 'state', v: c.role === 'host' ? hostView() : engine.view(c.role, c.id) });
+      seq += 1;
+      const cache = new Map();
+      for (const c of conns.values()) {
+        const vk = c.role + '|' + c.id;
+        if (!cache.has(vk)) cache.set(vk, c.role === 'host' ? hostView() : engine.view(c.role, c.id));
+        sendTo(c, { t: 'state', hs: session, seq, v: cache.get(vk) });
+      }
       onState(hostView());
       try { store('svoyak.online.game', JSON.stringify(engine.state)); } catch { /* память переполнена */ }
     }
@@ -215,9 +227,14 @@ const SvoyakOnline = (() => {
       c.seen = Date.now();
       if (d.t === 'act') {
         if (c.role === 'screen') return;
-        const body = { ...(d.body || {}) };
-        if (c.role === 'player') { body.role = 'player'; body.id = c.id; } else { body.role = 'host'; body.key = engine.pin; }
-        run(body)
+        // одно действие приходит через несколько серверов — выполняем один раз
+        const ak = cid + '|' + d.rid;
+        if (!acts.has(ak)) {
+          const body = { ...(d.body || {}) };
+          if (c.role === 'player') { body.role = 'player'; body.id = c.id; } else { body.role = 'host'; body.key = engine.pin; }
+          acts.set(ak, { at: Date.now(), p: run(body) });
+        }
+        acts.get(ak).p
           .then((res) => reply({ t: 'res', rid: d.rid, ok: true, ...res }))
           .catch((e) => reply({ t: 'res', rid: d.rid, error: e.message }));
       }
@@ -243,7 +260,7 @@ const SvoyakOnline = (() => {
       const now = Date.now();
       for (const [k, c] of conns) if (now - c.seen > 16000) conns.delete(k);
       broadcast();
-    }, 6000);
+    }, 4000);
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') links.forEach((l) => l.kick());
@@ -278,29 +295,33 @@ const SvoyakOnline = (() => {
   function connectRemote({ code, hello, onState, onStatus, onMessage }) {
     const h0 = hello();
     const cid = h0.role === 'player' && h0.id ? String(h0.id).slice(0, 40) : 'c' + rnd(12);
-    let chosen = -1; // номер сервера, через который отвечает ведущий
     let lastFromHost = 0;
-    let rid = 0;
+    let hostSession = null;
+    let lastSeq = 0;
+    let rid = Math.floor(Math.random() * 1e6);
     const pending = new Map();
     const started = Date.now();
+    const greeted = new Set(); // через какие серверы ведущий нас уже знает
 
     const sayHello = (l) => l.pub(upTopic(code), { cid, ...hello() });
 
+    // подключаемся ко всем серверам сразу: что быстрее дойдёт, то и показываем
     const links = BROKERS.map((url, bi) => {
       const l = Link(url, {
         will: { topic: upTopic(code), data: { cid, t: 'bye' } },
-        onUp: () => { if (chosen < 0 || chosen === bi) sayHello(l); },
-        onDown: () => {
-          if (chosen === bi) { chosen = -1; onStatus(false, 'Связь прервалась, переподключаемся…'); }
-        },
+        onUp: () => { greeted.delete(bi); sayHello(l); },
+        onDown: () => { greeted.delete(bi); },
         onMessage: (t, msg) => {
-          if (chosen >= 0 && chosen !== bi) return;
           if (msg.t === 'state') {
-            if (chosen < 0) chosen = bi;
+            greeted.add(bi);
+            if (msg.hs !== hostSession) { hostSession = msg.hs; lastSeq = 0; } // ведущий перезагрузил страницу
+            if (msg.seq <= lastSeq) return; // это состояние уже пришло через другой сервер
+            lastSeq = msg.seq;
             lastFromHost = Date.now();
             onStatus(true);
             onState(msg.v);
           } else if (msg.t === 'rehello') {
+            greeted.delete(bi);
             sayHello(l);
           } else if (msg.t === 'res') {
             lastFromHost = Date.now();
@@ -316,21 +337,17 @@ const SvoyakOnline = (() => {
       return l;
     });
 
-    // пока ведущий не ответил — повторяем приветствие; потом — пинг, чтобы он видел нас в сети
     const tick = setInterval(() => {
       const now = Date.now();
-      if (chosen >= 0 && links[chosen].alive) {
-        links[chosen].pub(upTopic(code), { cid, t: 'ping' });
-        if (now - lastFromHost > 20000) {
-          chosen = -1;
-          onStatus(false, 'Ведущий пропал из сети. Ждём, когда он вернётся…');
-        }
-        return;
-      }
-      const alive = links.filter((l) => l.alive);
-      alive.forEach(sayHello);
+      links.forEach((l, bi) => {
+        if (!l.alive) return;
+        if (greeted.has(bi)) l.pub(upTopic(code), { cid, t: 'ping' });
+        else sayHello(l);
+      });
+      if (lastFromHost && now - lastFromHost < 15000) return;
       if (now - started < 6000) return;
-      if (!alive.length) onStatus(false, 'Не удаётся связаться с сервером связи. Попробуйте другой интернет (мобильный или Wi‑Fi) или VPN.');
+      if (!links.some((l) => l.alive)) onStatus(false, 'Не удаётся связаться с сервером связи. Попробуйте другой интернет (мобильный или Wi‑Fi) или VPN.');
+      else if (lastFromHost) onStatus(false, 'Ведущий пропал из сети. Ждём, когда он вернётся…');
       else onStatus(false, `Ищем ведущего комнаты ${code}… Проверьте код и что пульт ведущего открыт.`);
     }, 3000);
 
@@ -343,19 +360,19 @@ const SvoyakOnline = (() => {
     onStatus(false, 'Подключаемся к серверу связи…');
 
     return {
+      // действие уходит через все серверы сразу; ведущий выполнит его один раз
       post(body) {
         return new Promise((resolve, reject) => {
-          const l = links[chosen];
-          if (!l || !l.alive) { reject(new Error('Нет связи с ведущим')); return; }
+          const alive = links.filter((l) => l.alive);
+          if (!alive.length || !lastFromHost) { reject(new Error('Нет связи с ведущим')); return; }
           const id = ++rid;
           const timer = setTimeout(() => { pending.delete(id); reject(new Error('Ведущий не ответил, попробуйте ещё раз')); }, 8000);
           pending.set(id, { resolve, reject, timer });
-          l.pub(upTopic(code), { cid, t: 'act', rid: id, body });
+          alive.forEach((l) => l.pub(upTopic(code), { cid, t: 'act', rid: id, body }));
         });
       },
       send(msg) {
-        const targets = chosen >= 0 ? [links[chosen]] : links;
-        targets.forEach((l) => l.pub(upTopic(code), { cid, ...msg }));
+        links.filter((l) => l.alive).forEach((l) => l.pub(upTopic(code), { cid, ...msg }));
       },
       close() {
         clearInterval(tick);

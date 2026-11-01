@@ -48,6 +48,10 @@
         </div>
       </div>
       <div id="ctrl" class="card"></div>
+      <div class="card" id="videoCard" hidden>
+        <div id="videoBox" class="video-box"></div>
+        <span class="muted" style="font-size:13px">Если видео не запустилось само — нажмите на него.</span>
+      </div>
       <div class="card">
         <div class="q-head"><span class="label">Игроки</span><span class="muted" style="font-size:13px">нажмите ⋯ для правки счёта</span></div>
         <div id="players"></div>
@@ -60,6 +64,57 @@
       <div class="card">
         <span class="label">Подключение</span>
         <div id="info"></div>
+      </div>
+      <div class="card no-cast">
+        <details>
+          <summary>Мои вопросы: мемы-картинки и видео с YouTube</summary>
+          <div style="display:grid;gap:12px;margin-top:12px">
+            <p class="muted" style="margin:0;font-size:14px">Вставьте ссылку на картинку мема или на видео YouTube и укажите, с какой по какую секунду играть — например, остановить прямо перед вирусной фразой. Свои темы попадают в следующую игру первыми (после «Начать игру»). Видео играет на ТВ или на этом телефоне, игроки видят надпись «Смотрите на экран».</p>
+            <div id="customList" style="display:grid;gap:6px"></div>
+            <input id="ctName" type="text" maxlength="40" placeholder="Название темы (например: Мемы СНГ)" aria-label="Название темы">
+              <div class="cq">
+                <b>Вопрос 1</b>
+                <input id="cq0t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 1">
+                <input id="cq0a" type="text" placeholder="Ответ" aria-label="Ответ 1">
+                <input id="cq0i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 1">
+                <input id="cq0v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 1">
+                <div class="row"><input id="cq0s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 1" style="flex:1 1 100px;width:auto"><input id="cq0e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 1" style="flex:1 1 100px;width:auto"></div>
+              </div>
+              <div class="cq">
+                <b>Вопрос 2</b>
+                <input id="cq1t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 2">
+                <input id="cq1a" type="text" placeholder="Ответ" aria-label="Ответ 2">
+                <input id="cq1i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 2">
+                <input id="cq1v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 2">
+                <div class="row"><input id="cq1s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 2" style="flex:1 1 100px;width:auto"><input id="cq1e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 2" style="flex:1 1 100px;width:auto"></div>
+              </div>
+              <div class="cq">
+                <b>Вопрос 3</b>
+                <input id="cq2t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 3">
+                <input id="cq2a" type="text" placeholder="Ответ" aria-label="Ответ 3">
+                <input id="cq2i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 3">
+                <input id="cq2v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 3">
+                <div class="row"><input id="cq2s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 3" style="flex:1 1 100px;width:auto"><input id="cq2e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 3" style="flex:1 1 100px;width:auto"></div>
+              </div>
+              <div class="cq">
+                <b>Вопрос 4</b>
+                <input id="cq3t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 4">
+                <input id="cq3a" type="text" placeholder="Ответ" aria-label="Ответ 4">
+                <input id="cq3i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 4">
+                <input id="cq3v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 4">
+                <div class="row"><input id="cq3s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 4" style="flex:1 1 100px;width:auto"><input id="cq3e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 4" style="flex:1 1 100px;width:auto"></div>
+              </div>
+              <div class="cq">
+                <b>Вопрос 5</b>
+                <input id="cq4t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 5">
+                <input id="cq4a" type="text" placeholder="Ответ" aria-label="Ответ 5">
+                <input id="cq4i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 5">
+                <input id="cq4v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 5">
+                <div class="row"><input id="cq4s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 5" style="flex:1 1 100px;width:auto"><input id="cq4e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 5" style="flex:1 1 100px;width:auto"></div>
+              </div>
+            <button class="btn gold wide" id="ctSave" type="button">Сохранить тему</button>
+          </div>
+        </details>
       </div>
       <div class="card">
         <details>
@@ -183,6 +238,14 @@ function section(id, k, html, bind) {
 function render() {
   if (!st) return;
   syncAudio();
+  const hasVideo = st.q && st.q.video && (st.phase === 'question' || st.phase === 'reveal');
+  if (!hasVideo && !$('#videoCard').hidden) { S.stopVideo(); $('#videoCard').hidden = true; }
+  section('customList', JSON.stringify(st.custom || []), (st.custom || []).map((t) => `<div class="score-row"><span class="nm">${e(t.name)} · ${t.questions.length} вопр.${t.played ? ' · сыграна' : ''}</span><button class="btn small ghost" data-cedit="${e(t.name)}">Изменить</button><button class="btn small bad" data-cdel="${e(t.name)}">Удалить</button></div>`).join('') || '<span class="muted" style="font-size:14px">Своих тем пока нет</span>', (el) => {
+    el.querySelectorAll('[data-cdel]').forEach((b) => b.onclick = () => {
+      if (b.dataset.sure) act('customDelete', { name: b.dataset.cdel }); else { b.dataset.sure = '1'; b.textContent = 'Точно?'; }
+    });
+    el.querySelectorAll('[data-cedit]').forEach((b) => b.onclick = () => fillCustom((st.custom || []).find((t) => t.name === b.dataset.cedit)));
+  });
   if (st.phase !== 'question' && st.phase !== 'reveal') { if (!audio.paused) audio.pause(); S.stopMelody(); }
   if (st.answering && st.answering !== prevAnswering) { S.beep(660, 120); setTimeout(() => S.beep(990, 220), 130); S.vibrate([100, 50, 100]); }
   prevAnswering = st.answering;
@@ -241,7 +304,7 @@ function bonusHtml(q) {
 }
 function hostText(q) {
   if (catHiddenOnTv(q)) return 'Вопрос появится после передачи (трансляция включена).';
-  return bonusHidden(q) && (q.type === 'gift' || q.type === 'plusminus') ? 'Бонус! Жми кнопку быстрее всех.' : q.text;
+  return bonusHidden(q) && S.isCard(q.type) ? 'Бонус! Жми кнопку быстрее всех.' : q.text;
 }
 const playUrl = () => (st.online ? st.online.play : st.urls[0] + '/play');
 
@@ -269,6 +332,11 @@ function answerHtml(answer) {
 }
 
 function audioHtml(q) {
+  if (q.video) {
+    const where = st.screens > 0 ? 'Видео играет на большом экране' : 'Видео играет на этом телефоне (при трансляции — на ТВ)';
+    return `<div class="row"><button class="btn gold" data-video="clip">▶ Видео</button>${st.phase === 'reveal' ? '<button class="btn" data-video="rest">▶ Досмотреть</button>' : ''}<button class="btn ghost" data-video="stop">■ Стоп</button></div>
+      <span class="muted" style="font-size:13px">${where}${q.video.end ? `, остановится на ${q.video.end} с` : ''}</span>`;
+  }
   if (!q.audio && !q.melody) return '';
   const where = st.screens > 0 ? 'играет на большом экране' : 'играет на этом телефоне';
   return `<div class="row"><button class="btn gold" data-act="playMedia">▶ Музыка</button><button class="btn ghost" data-act="stopMedia">■ Стоп</button></div>
@@ -313,7 +381,7 @@ function ctrlHtml() {
         ${bonusHtml(q)}
         <div class="q-text">${e(hostText(q))}</div>
         ${catHiddenOnTv(q) ? '' : S.imageHtml(q)}${audioHtml(q)}
-        ${st.phase === 'reveal' ? `<div class="answer">${q.type === 'gift' || q.type === 'plusminus' ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>` : (q.type === 'gift' || q.type === 'plusminus' ? '' : answerHtml(q.answer))}`;
+        ${st.phase === 'reveal' ? `<div class="answer">${S.isCard(q.type) ? '' : 'Ответ: '}<b>${e(q.answer)}</b></div>` : (S.isCard(q.type) ? '' : answerHtml(q.answer))}`;
       if (st.phase === 'reveal') return h + '<button class="btn gold wide" data-act="toBoard">К табло</button>';
       if (st.answering) {
         if (q.type === 'gift') {
@@ -420,6 +488,13 @@ function bindRestart(el) {
 
 function bindCtrl(el) {
   bindRestart(el);
+  el.querySelectorAll('[data-video]').forEach((b) => b.onclick = () => {
+    const part = b.dataset.video;
+    if (part === 'stop') { S.stopVideo(); act('stopMedia'); return; }
+    if (st.screens > 0) { act('playMedia', { part }); return; }
+    $('#videoCard').hidden = false;
+    S.playVideo($('#videoBox'), st.q.video, part); // прямо в нажатии — иначе iPhone не включит звук
+  });
   const ss = el.querySelector('[data-stake-set]');
   if (ss) ss.onclick = () => { const v = $('#stakeInput').value; if (v !== '') { $('#stakeInput').blur(); act('stake', { amount: Number(v) }); } };
   el.querySelectorAll('[data-gift]').forEach((b) => b.onclick = () => act('gift', { amount: Number(b.dataset.gift) }));
@@ -488,6 +563,39 @@ function roundsHtml() {
     + '<button class="btn small ghost" data-end="1">Итоги</button>'
     + '<button class="btn bad wide" data-restart="1" style="flex-basis:100%">Начать заново (новые темы)</button>';
 }
+
+// ---- редактор своих тем ----
+function fillCustom(t) {
+  $('#ctName').value = t ? t.name : '';
+  for (let i = 0; i < 5; i++) {
+    const q = (t && t.questions[i]) || {};
+    $('#cq' + i + 't').value = q.text || '';
+    $('#cq' + i + 'a').value = q.answer || '';
+    $('#cq' + i + 'i').value = q.image || '';
+    $('#cq' + i + 'v').value = q.video ? 'https://youtu.be/' + q.video.id : '';
+    $('#cq' + i + 's').value = q.video && q.video.start ? q.video.start : '';
+    $('#cq' + i + 'e').value = q.video && q.video.end ? q.video.end : '';
+  }
+  $('#ctName').scrollIntoView({ block: 'center' });
+}
+$('#ctSave').addEventListener('click', async () => {
+  const questions = [];
+  for (let i = 0; i < 5; i++) {
+    const v = (k) => $('#cq' + i + k).value.trim();
+    if (!v('t') && !v('a') && !v('i') && !v('v')) continue;
+    const q = { text: v('t'), answer: v('a'), image: v('i') };
+    if (v('v')) {
+      const yt = S.parseYouTube(v('v'));
+      if (!yt) { S.toast(`Вопрос ${i + 1}: не похоже на ссылку YouTube`); return; }
+      q.video = { id: yt.id, start: v('s') ? S.toSec(v('s')) : yt.start, end: v('e') ? S.toSec(v('e')) : 0 };
+    }
+    if (q.image && !/^https:\/\//i.test(q.image)) { S.toast(`Вопрос ${i + 1}: ссылка на картинку должна начинаться с https://`); return; }
+    if (!q.answer) { S.toast(`Вопрос ${i + 1}: нужен ответ`); return; }
+    questions.push(q);
+  }
+  const r = await act('customSave', { theme: { name: $('#ctName').value, questions } });
+  if (r) { S.toast('Тема сохранена — появится в следующей игре'); fillCustom(null); }
+});
 
 $('#newGameBtn').addEventListener('click', (ev) => {
   const b = ev.currentTarget;

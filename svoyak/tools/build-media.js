@@ -34,6 +34,17 @@ const flags = {
   switzerland: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="200" height="200"><rect width="32" height="32" fill="#DA291C"/><rect x="13" y="6" width="6" height="20" fill="#fff"/><rect x="6" y="13" width="20" height="6" fill="#fff"/></svg>`,
   netherlands: hStripes(200, ['#AE1C28', '#FFFFFF', '#21468B']),
   belgium: vStripes(260, ['#000000', '#FAE042', '#ED2939']),
+  // новый сезон
+  france: vStripes(200, ['#0055A4', '#FFFFFF', '#EF4135']),
+  austria: hStripes(200, ['#ED2939', '#FFFFFF', '#ED2939']),
+  finland: frame(W, 183.3, `<rect width="300" height="183.3" fill="#fff"/><rect x="${W / 18 * 5}" y="0" width="${W / 18 * 3}" height="183.3" fill="#002F6C"/><rect x="0" y="${183.3 / 11 * 4}" width="300" height="${183.3 / 11 * 3}" fill="#002F6C"/>`),
+  denmark: frame(W, 227, `<rect width="300" height="227" fill="#C8102E"/><rect x="${W / 37 * 12}" y="0" width="${W / 37 * 4}" height="227" fill="#fff"/><rect x="0" y="${227 / 28 * 12}" width="300" height="${227 / 28 * 4}" fill="#fff"/>`),
+  estonia: hStripes(191, ['#0072CE', '#000000', '#FFFFFF']),
+  hungary: hStripes(150, ['#CE2939', '#FFFFFF', '#477050']),
+  romania: vStripes(200, ['#002B7F', '#FCD116', '#CE1126']),
+  lithuania: hStripes(180, ['#FDB913', '#006A44', '#C1272D']),
+  norway: frame(W, 218, `<rect width="300" height="218" fill="#BA0C2F"/><rect x="${W / 22 * 5}" y="0" width="${W / 22 * 4}" height="218" fill="#fff"/><rect x="0" y="${218 / 16 * 6}" width="300" height="${218 / 16 * 4}" fill="#fff"/><rect x="${W / 22 * 6}" y="0" width="${W / 22 * 2}" height="218" fill="#00205B"/><rect x="0" y="${218 / 16 * 7}" width="300" height="${218 / 16 * 2}" fill="#00205B"/>`),
+  czechia: frame(W, 200, `<rect width="300" height="100" fill="#fff"/><rect y="100" width="300" height="100" fill="#D7141A"/><path d="M0 0 L150 100 L0 200 Z" fill="#11457E"/>`),
 };
 for (const [n, svg] of Object.entries(flags)) save(`flags/${n}.svg`, svg);
 
@@ -78,10 +89,24 @@ function mapSvg(feature, { width = 400, dot = null } = {}) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}"><path d="${d}" fill="#f6c453" stroke="#7a5c12" stroke-width="1" stroke-linejoin="round"/>${extra}</svg>`;
 }
 
+// оставить только части страны внутри рамки [запад, юг, восток, север] (без заморских территорий)
+function within(f, [w, so, e, n]) {
+  const polys = polygons(f).filter((c) => { const [[x0, y0], [x1, y1]] = d3.geoBounds({ type: 'Polygon', coordinates: c }); return x0 >= w && x1 <= e && y0 >= so && y1 <= n; });
+  return { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: polys } };
+}
+save('maps/country-france.svg', mapSvg(within(byName('France'), [-6, 41, 10, 52])));
+save('maps/country-spain.svg', mapSvg(within(byName('Spain'), [-10, 35, 5, 44.5])));
+save('maps/country-india.svg', mapSvg(mainland(byName('India'), 0.02)));
+save('maps/country-egypt.svg', mapSvg(mainland(byName('Egypt'), 0.02)));
+save('maps/country-mexico.svg', mapSvg(mainland(byName('Mexico'), 0.02)));
+
 const shapes = { italy: 'Italy', australia: 'Australia', japan: 'Japan', uk: 'United Kingdom', chile: 'Chile' };
 for (const [file, n] of Object.entries(shapes)) save(`maps/country-${file}.svg`, mapSvg(mainland(byName(n), n === 'Chile' ? 0.02 : 0.005), { width: n === 'Chile' ? 220 : 400 }));
 
-const cities = { kyiv: [30.52, 50.45], odesa: [30.73, 46.48], lviv: [24.03, 49.84], kharkiv: [36.23, 49.99], poltava: [34.55, 49.59] };
+const cities = {
+  kyiv: [30.52, 50.45], odesa: [30.73, 46.48], lviv: [24.03, 49.84], kharkiv: [36.23, 49.99], poltava: [34.55, 49.59],
+  dnipro: [35.05, 48.46], zaporizhzhia: [35.14, 47.84], uzhhorod: [22.30, 48.62], chernihiv: [31.29, 51.50], vinnytsia: [28.47, 49.23],
+};
 for (const [file, xy] of Object.entries(cities)) save(`maps/ua-${file}.svg`, mapSvg('ua', { dot: xy }));
 save('maps/ukraine.svg', mapSvg('ua'));
 
