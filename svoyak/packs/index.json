@@ -8,29 +8,45 @@
     "title": "Случайный микс 18+"
   },
   {
-    "file": "novyi1.json",
-    "title": "Новый сезон 1",
+    "file": "sezon3_1.json",
+    "title": "Сезон 3 — часть 1",
     "mix": true
+  },
+  {
+    "file": "sezon3_2.json",
+    "title": "Сезон 3 — часть 2",
+    "mix": true
+  },
+  {
+    "file": "sezon3_3.json",
+    "title": "Сезон 3 — часть 3",
+    "mix": true
+  },
+  {
+    "file": "finals3.json",
+    "title": "Финалы: сезон 3",
+    "mix": true,
+    "hidden": true
+  },
+  {
+    "file": "novyi1.json",
+    "title": "Новый сезон 1"
   },
   {
     "file": "novyi2.json",
-    "title": "Новый сезон 2",
-    "mix": true
+    "title": "Новый сезон 2"
   },
   {
     "file": "novyi18.json",
-    "title": "Новый сезон 18+",
-    "mix": true
+    "title": "Новый сезон 18+"
   },
   {
     "file": "novyi_media.json",
-    "title": "Новый сезон: картинки и мемы",
-    "mix": true
+    "title": "Новый сезон: картинки и мемы"
   },
   {
     "file": "finals2.json",
     "title": "Финалы: новый сезон",
-    "mix": true,
     "hidden": true
   },
   {

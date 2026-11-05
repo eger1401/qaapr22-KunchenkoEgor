@@ -44,6 +44,17 @@ const flags = {
   romania: vStripes(200, ['#002B7F', '#FCD116', '#CE1126']),
   lithuania: hStripes(180, ['#FDB913', '#006A44', '#C1272D']),
   norway: frame(W, 218, `<rect width="300" height="218" fill="#BA0C2F"/><rect x="${W / 22 * 5}" y="0" width="${W / 22 * 4}" height="218" fill="#fff"/><rect x="0" y="${218 / 16 * 6}" width="300" height="${218 / 16 * 4}" fill="#fff"/><rect x="${W / 22 * 6}" y="0" width="${W / 22 * 2}" height="218" fill="#00205B"/><rect x="0" y="${218 / 16 * 7}" width="300" height="${218 / 16 * 2}" fill="#00205B"/>`),
+  // сезон 3
+  bulgaria: hStripes(180, ['#FFFFFF', '#00966E', '#D62612']),
+  colombia: frame(W, 200, `<rect width="300" height="100" fill="#FCD116"/><rect y="100" width="300" height="50" fill="#003893"/><rect y="150" width="300" height="50" fill="#CE1126"/>`),
+  nigeria: vStripes(150, ['#008751', '#FFFFFF', '#008751']),
+  peru: vStripes(200, ['#D91023', '#FFFFFF', '#D91023']),
+  latvia: frame(W, 150, `<rect width="300" height="60" fill="#9E3039"/><rect y="60" width="300" height="30" fill="#fff"/><rect y="90" width="300" height="60" fill="#9E3039"/>`),
+  armenia: hStripes(150, ['#D90012', '#0033A0', '#F2A800']),
+  bolivia: hStripes(205, ['#D52B1E', '#F9E300', '#007934']),
+  ivorycoast: vStripes(200, ['#F77F00', '#FFFFFF', '#009E60']),
+  gabon: hStripes(225, ['#009E60', '#FCD116', '#3A75C4']),
+  yemen: hStripes(200, ['#CE1126', '#FFFFFF', '#000000']),
   czechia: frame(W, 200, `<rect width="300" height="100" fill="#fff"/><rect y="100" width="300" height="100" fill="#D7141A"/><path d="M0 0 L150 100 L0 200 Z" fill="#11457E"/>`),
 };
 for (const [n, svg] of Object.entries(flags)) save(`flags/${n}.svg`, svg);
@@ -98,6 +109,11 @@ save('maps/country-france.svg', mapSvg(within(byName('France'), [-6, 41, 10, 52]
 save('maps/country-spain.svg', mapSvg(within(byName('Spain'), [-10, 35, 5, 44.5])));
 save('maps/country-india.svg', mapSvg(mainland(byName('India'), 0.02)));
 save('maps/country-egypt.svg', mapSvg(mainland(byName('Egypt'), 0.02)));
+save('maps/country-brazil.svg', mapSvg(mainland(byName('Brazil'), 0.02)));
+save('maps/country-turkey.svg', mapSvg(mainland(byName('Turkey'), 0.02)));
+save('maps/country-madagascar.svg', mapSvg(mainland(byName('Madagascar'), 0.02), { width: 260 }));
+save('maps/country-cuba.svg', mapSvg(mainland(byName('Cuba'), 0.02)));
+save('maps/country-greece.svg', mapSvg(mainland(byName('Greece'), 0.01)));
 save('maps/country-mexico.svg', mapSvg(mainland(byName('Mexico'), 0.02)));
 
 const shapes = { italy: 'Italy', australia: 'Australia', japan: 'Japan', uk: 'United Kingdom', chile: 'Chile' };
@@ -105,6 +121,7 @@ for (const [file, n] of Object.entries(shapes)) save(`maps/country-${file}.svg`,
 
 const cities = {
   kyiv: [30.52, 50.45], odesa: [30.73, 46.48], lviv: [24.03, 49.84], kharkiv: [36.23, 49.99], poltava: [34.55, 49.59],
+  kherson: [32.62, 46.64], mykolaiv: [31.99, 46.97], ivanofrankivsk: [24.71, 48.92], sumy: [34.80, 50.91], zhytomyr: [28.66, 50.25],
   dnipro: [35.05, 48.46], zaporizhzhia: [35.14, 47.84], uzhhorod: [22.30, 48.62], chernihiv: [31.29, 51.50], vinnytsia: [28.47, 49.23],
 };
 for (const [file, xy] of Object.entries(cities)) save(`maps/ua-${file}.svg`, mapSvg('ua', { dot: xy }));

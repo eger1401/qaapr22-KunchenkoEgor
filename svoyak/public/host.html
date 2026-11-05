@@ -67,9 +67,9 @@
       </div>
       <div class="card no-cast">
         <details>
-          <summary>Мои вопросы: мемы-картинки и видео с YouTube</summary>
+          <summary>Мои вопросы: мемы-картинки</summary>
           <div style="display:grid;gap:12px;margin-top:12px">
-            <p class="muted" style="margin:0;font-size:14px">Вставьте ссылку на картинку мема или на видео YouTube и укажите, с какой по какую секунду играть — например, остановить прямо перед вирусной фразой. Свои темы попадают в следующую игру первыми (после «Начать игру»). Видео играет на ТВ или на этом телефоне, игроки видят надпись «Смотрите на экран».</p>
+            <p class="muted" style="margin:0;font-size:14px">Добавьте картинки мемов из галереи или ссылкой. Свои темы попадают в следующую игру первыми (после «Начать игру»).</p>
             <div id="customList" style="display:grid;gap:6px"></div>
             <div class="cq">
               <b>Назови мем — картинки из галереи</b>
@@ -85,41 +85,41 @@
                 <b>Вопрос 1</b>
                 <input id="cq0t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 1">
                 <input id="cq0a" type="text" placeholder="Ответ" aria-label="Ответ 1">
-                <input id="cq0i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 1">
-                <input id="cq0v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 1">
-                <div class="row"><input id="cq0s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 1" style="flex:1 1 100px;width:auto"><input id="cq0e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 1" style="flex:1 1 100px;width:auto"></div>
+                <input id="cq0i" type="url" placeholder="Ссылка на картинку (https://…)" aria-label="Картинка 1">
+                <input id="cq0v" type="url" hidden placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 1">
+                <div class="row" hidden><input id="cq0s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 1" style="flex:1 1 100px;width:auto"><input id="cq0e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 1" style="flex:1 1 100px;width:auto"></div>
               </div>
               <div class="cq">
                 <b>Вопрос 2</b>
                 <input id="cq1t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 2">
                 <input id="cq1a" type="text" placeholder="Ответ" aria-label="Ответ 2">
-                <input id="cq1i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 2">
-                <input id="cq1v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 2">
-                <div class="row"><input id="cq1s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 2" style="flex:1 1 100px;width:auto"><input id="cq1e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 2" style="flex:1 1 100px;width:auto"></div>
+                <input id="cq1i" type="url" placeholder="Ссылка на картинку (https://…)" aria-label="Картинка 2">
+                <input id="cq1v" type="url" hidden placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 2">
+                <div class="row" hidden><input id="cq1s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 2" style="flex:1 1 100px;width:auto"><input id="cq1e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 2" style="flex:1 1 100px;width:auto"></div>
               </div>
               <div class="cq">
                 <b>Вопрос 3</b>
                 <input id="cq2t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 3">
                 <input id="cq2a" type="text" placeholder="Ответ" aria-label="Ответ 3">
-                <input id="cq2i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 3">
-                <input id="cq2v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 3">
-                <div class="row"><input id="cq2s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 3" style="flex:1 1 100px;width:auto"><input id="cq2e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 3" style="flex:1 1 100px;width:auto"></div>
+                <input id="cq2i" type="url" placeholder="Ссылка на картинку (https://…)" aria-label="Картинка 3">
+                <input id="cq2v" type="url" hidden placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 3">
+                <div class="row" hidden><input id="cq2s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 3" style="flex:1 1 100px;width:auto"><input id="cq2e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 3" style="flex:1 1 100px;width:auto"></div>
               </div>
               <div class="cq">
                 <b>Вопрос 4</b>
                 <input id="cq3t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 4">
                 <input id="cq3a" type="text" placeholder="Ответ" aria-label="Ответ 4">
-                <input id="cq3i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 4">
-                <input id="cq3v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 4">
-                <div class="row"><input id="cq3s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 4" style="flex:1 1 100px;width:auto"><input id="cq3e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 4" style="flex:1 1 100px;width:auto"></div>
+                <input id="cq3i" type="url" placeholder="Ссылка на картинку (https://…)" aria-label="Картинка 4">
+                <input id="cq3v" type="url" hidden placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 4">
+                <div class="row" hidden><input id="cq3s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 4" style="flex:1 1 100px;width:auto"><input id="cq3e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 4" style="flex:1 1 100px;width:auto"></div>
               </div>
               <div class="cq">
                 <b>Вопрос 5</b>
                 <input id="cq4t" type="text" placeholder="Вопрос (например: Закончите мем)" aria-label="Вопрос 5">
                 <input id="cq4a" type="text" placeholder="Ответ" aria-label="Ответ 5">
-                <input id="cq4i" type="url" placeholder="Ссылка на картинку (https://…), необязательно" aria-label="Картинка 5">
-                <input id="cq4v" type="url" placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 5">
-                <div class="row"><input id="cq4s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 5" style="flex:1 1 100px;width:auto"><input id="cq4e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 5" style="flex:1 1 100px;width:auto"></div>
+                <input id="cq4i" type="url" placeholder="Ссылка на картинку (https://…)" aria-label="Картинка 5">
+                <input id="cq4v" type="url" hidden placeholder="Ссылка на YouTube, необязательно" aria-label="YouTube 5">
+                <div class="row" hidden><input id="cq4s" type="text" inputmode="numeric" placeholder="с секунды (0:15)" aria-label="С секунды 5" style="flex:1 1 100px;width:auto"><input id="cq4e" type="text" inputmode="numeric" placeholder="до секунды (0:22)" aria-label="До секунды 5" style="flex:1 1 100px;width:auto"></div>
               </div>
             <button class="btn gold wide" id="ctSave" type="button">Сохранить тему</button>
           </div>

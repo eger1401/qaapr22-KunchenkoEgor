@@ -243,61 +243,6 @@
               "answer": "«…ляхи?» (Тарас Бульба)"
             }
           ]
-        },
-        {
-          "name": "Угадай песню по клипу",
-          "questions": [
-            {
-              "price": 200,
-              "text": "Угадай песню. Ведущий: начните с 1 секунды и добавляйте — 3, 5, 10, 20.",
-              "answer": "PSY — «Gangnam Style»",
-              "video": {
-                "id": "9bZkp7q19f0",
-                "start": 0,
-                "end": 0
-              }
-            },
-            {
-              "price": 400,
-              "text": "Угадай песню. Ведущий: начните с 1 секунды и добавляйте — 3, 5, 10, 20.",
-              "answer": "Luis Fonsi — «Despacito»",
-              "video": {
-                "id": "kJQP7kiw5Fk",
-                "start": 0,
-                "end": 0
-              }
-            },
-            {
-              "price": 600,
-              "text": "Угадай песню. Ведущий: начните с 1 секунды и добавляйте — 3, 5, 10, 20.",
-              "answer": "Ed Sheeran — «Shape of You»",
-              "video": {
-                "id": "JGwWNGJdvx8",
-                "start": 0,
-                "end": 0
-              }
-            },
-            {
-              "price": 800,
-              "text": "Угадай песню. Ведущий: начните с 1 секунды и добавляйте — 3, 5, 10, 20.",
-              "answer": "Mark Ronson ft. Bruno Mars — «Uptown Funk»",
-              "video": {
-                "id": "OPf0YbXqDm0",
-                "start": 0,
-                "end": 0
-              }
-            },
-            {
-              "price": 1000,
-              "text": "Угадай песню. Ведущий: начните с 1 секунды и добавляйте — 3, 5, 10, 20.",
-              "answer": "Rick Astley — «Never Gonna Give You Up»",
-              "video": {
-                "id": "dQw4w9WgXcQ",
-                "start": 0,
-                "end": 0
-              }
-            }
-          ]
         }
       ]
     }
